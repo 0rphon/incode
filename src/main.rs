@@ -26,28 +26,20 @@ const TARGET_OUTPUT: &str = concat!(
     "\x50",                 //push   eax 
 );
 
-const XOR_PUSH: [u8;2]      = [0x6A, 0x01];     //push   0x1
-const XOR_PUSH_INS: &str    = "push   0x1";
-const XOR_POP: [u8;1]       = [0x58];           //pop    eax
-const XOR_POP_INS: &str     = "pop    eax";
-const XOR_XOR: [u8;2]       = [0x34, 0x01];     //xor    al,0x1
-const XOR_XOR_INS: &str     = "xor    al,0x1";
+const PUSH_ONE: [u8;2]      = [0x6A, 0x01];     //push   0x1
+const PUSH_ONE_INS: &str    = "push   0x1";
+const POP_EAX: [u8;1]       = [0x58];           //pop    eax
+const POP_EAX_INS: &str     = "pop    eax";
+const XOR_AL: [u8;2]        = [0x34, 0x01];     //xor    al,0x1
+const XOR_AL_INS: &str      = "xor    al,0x1";
 const SUB: u8               = 0x2D;
 const SUB_INS: &str         = "sub";
 const ADD: u8               = 0x05;
 const ADD_INS: &str         = "add";
 const PUSH_EAX: [u8;1]      = [0x50];
 const PUSH_EAX_INS: &str    = "push   eax";
-const DIRECT_PUSH: u8       = 0x68;
-const DIRECT_PUSH_INS: &str = "push";
-//tools
-//25 7f 7f 7f 7f          and    eax,0x7f7f7f7f
-//35 7f 7f 7f 7f          xor    eax,0x7f7f7f7f 
-//05 7f 7f 7f 7f          add    eax,0x7f7f7f7f 
-//smallest way to zero reg
-//6a 01                   push   0x1
-//58                      pop    eax
-//34 01                   xor    al,0x1 
+const PUSH_VAL: u8       = 0x68;
+const PUSH_VAL_INS: &str = "push";
 
 ///parses input for its hex values
 fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
@@ -188,9 +180,9 @@ impl EncodeData {
 //just creates an xor instruction
 fn xor() -> Vec<Vec<u8>> {
     vec!(
-        XOR_PUSH.to_vec(),
-        XOR_POP.to_vec(),
-        XOR_XOR.to_vec()
+        PUSH_ONE.to_vec(),
+        POP_EAX.to_vec(),
+        XOR_AL.to_vec()
     )
 }
 
@@ -226,11 +218,14 @@ fn display_instructions(instructions: Vec<Vec<u8>>) {
         println!("{:<24} //{}",
             format_bytes(&ins),
             match ins {
-                i if i == XOR_PUSH       => XOR_PUSH_INS.to_string(),
-                i if i == XOR_POP        => XOR_POP_INS.to_string(),
-                i if i == XOR_XOR        => XOR_XOR_INS.to_string(),
+                i if i == PUSH_ONE       => PUSH_ONE_INS.to_string(),
+                i if i == POP_EAX        => POP_EAX_INS.to_string(),
+                i if i == XOR_AL         => XOR_AL_INS.to_string(),
                 i if i == PUSH_EAX       => PUSH_EAX_INS.to_string(),
-                i if i[0] == DIRECT_PUSH => DIRECT_PUSH_INS.to_string(),
+                i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}", 
+                    PUSH_VAL_INS,
+                    get_u32([i[1], i[2], i[3], i[4]])
+                ),
                 i if i[0] == SUB => format!("{:<6} 0x{:08X}", 
                     SUB_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
@@ -284,7 +279,7 @@ fn main() {
             reg = word;
         } else {
             let mut ins = word.to_vec();
-            ins.insert(0, DIRECT_PUSH);
+            ins.insert(0, PUSH_VAL);
             output.push(ins)
         }
     }
@@ -297,6 +292,16 @@ fn main() {
     println!("Payload size: {} bytes", output.iter().flatten().count());
     display_instructions(output)
 }
+
+
+//tools
+//25 7f 7f 7f 7f          and    eax,0x7f7f7f7f
+//35 7f 7f 7f 7f          xor    eax,0x7f7f7f7f 
+//05 7f 7f 7f 7f          add    eax,0x7f7f7f7f 
+//smallest way to zero reg
+//6a 01                   push   0x1
+//58                      pop    eax
+//34 01                   xor    al,0x1 
 
 
 //ADJUSTING
@@ -313,6 +318,7 @@ fn main() {
 
 
 
-//prog.exe "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
+//prog.exe --wrap "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
 //prog.exe --jump 3b8ef330 --esp 3b8eff20 --eip 3b8ef030                        JUMP
-//prog.exe "\x33\x00\x90\x01\xFF"                                               JUST CREATE THE WRAP CODE
+//prog.exe --wrap "\x33\x00\x90\x01\xFF"                                        JUST CREATE THE WRAP CODE
+//prog.exe --esp 3b8eff20 --eip 3b8ef030
