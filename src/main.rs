@@ -1,18 +1,28 @@
 mod wrap;
 mod translate;
 use wrap::{wrap, display_instructions};
-use translate::{parse_bytes, get_dwords};
+use translate::{parse_bytes, get_words};
 
 use std::env::args;
 
+
+
+
+
+
+
+
+
+
+
 fn main() {
     let input = {
-        if let Some(arg) = args().nth(1) {arg}
+        if let Some(arg) = args().nth(1) {arg} 
         else {panic!("No arg passed!")}
     };
     let bytes = parse_bytes(&input).unwrap();
     println!("Parsed {} bytes: {:02X?}", bytes.len(), bytes);
-    let words = get_dwords(&bytes);
+    let words = get_words(&bytes);
 
     let output = wrap(words);
     println!("Payload size: {} bytes", output.iter().flatten().count());
@@ -22,12 +32,12 @@ fn main() {
 
 //tools
 //25 7f 7f 7f 7f          and    eax,0x7f7f7f7f
-//35 7f 7f 7f 7f          xor    eax,0x7f7f7f7f
-//05 7f 7f 7f 7f          add    eax,0x7f7f7f7f
+//35 7f 7f 7f 7f          xor    eax,0x7f7f7f7f 
+//05 7f 7f 7f 7f          add    eax,0x7f7f7f7f 
 //smallest way to zero reg
 //6a 01                   push   0x1
 //58                      pop    eax
-//34 01                   xor    al,0x1
+//34 01                   xor    al,0x1 
 
 
 //ADJUSTING

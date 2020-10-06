@@ -2,11 +2,11 @@ use super::translate::{get_u32, get_bytes_u32, format_bytes};
 
 use std::u8;
 
-const PUSH_ONE: [u8;2]      = [0x6A, 0x01];
+const PUSH_ONE: [u8;2]      = [0x6A, 0x01];     //push   0x1
 const PUSH_ONE_INS: &str    = "push   0x1";
-const POP_EAX: [u8;1]       = [0x58];
+const POP_EAX: [u8;1]       = [0x58];           //pop    eax
 const POP_EAX_INS: &str     = "pop    eax";
-const XOR_AL: [u8;2]        = [0x34, 0x01];
+const XOR_AL: [u8;2]        = [0x34, 0x01];     //xor    al,0x1
 const XOR_AL_INS: &str      = "xor    al,0x1";
 const SUB: u8               = 0x2D;
 const SUB_INS: &str         = "sub";
@@ -80,9 +80,9 @@ impl EncodeData {
             //if remainder valid then its all good
             if get_bytes_u32(rem).iter().all(|b| *b<=0x7F&&*b!=0) {
                 return values
-            }
+            }        
             //if only one val and val has null byte then bad
-            if values.len()==1
+            if values.len()==1 
             && get_bytes_u32(rem).iter().any(|b| *b==0) {
                 return vec!(0;10)
             }
@@ -147,7 +147,12 @@ fn encode_action(op: u8, lines: Vec<u32>) -> Vec<Vec<u8>> {
 }
 
 
-///displays the corresponding opcodes for a byte array
+
+
+
+
+
+
 pub fn display_instructions(instructions: Vec<Vec<u8>>) {
     for ins in instructions {
         println!("{:<24} //{}",
@@ -157,20 +162,20 @@ pub fn display_instructions(instructions: Vec<Vec<u8>>) {
                 i if i == POP_EAX        => POP_EAX_INS.to_string(),
                 i if i == XOR_AL         => XOR_AL_INS.to_string(),
                 i if i == PUSH_EAX       => PUSH_EAX_INS.to_string(),
-                i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}",
+                i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}", 
                     PUSH_VAL_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
                 ),
-                i if i[0] == SUB => format!("{:<6} 0x{:08X}",
+                i if i[0] == SUB => format!("{:<6} 0x{:08X}", 
                     SUB_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
                 ),
-                i if i[0] == ADD => format!("{:<6} 0x{:08X}",
+                i if i[0] == ADD => format!("{:<6} 0x{:08X}", 
                     ADD_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
                 ),
                 _ => panic!("Error while formatting. Contact the Dev.")
-            }
+            }            
         );
     }
 }
@@ -215,7 +220,7 @@ pub fn wrap(words: Vec<[u8;4]>) -> Vec<Vec<u8>> {
         }
     }
     let xor_len = xor().len();
-    if output[0..xor_len] == xor()[..]
+    if output[0..xor_len] == xor()[..] 
     && output[xor_len..xor_len+xor_len] == xor()[..] {
         println!("Output had duplicate values. Its been adjusted, but please contact the dev");
         output.drain(0..xor_len);
