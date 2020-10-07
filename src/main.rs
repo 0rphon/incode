@@ -60,11 +60,6 @@ fn do_position_code(input: input::UserInput) {println!("Not Implemented yet. Sor
 fn do_position_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 
-//--code                        wrap code
-//--esp --eip                   position
-//--code --esp --eip            position then code
-//--jump --esp --eip            position then code jump
-//--code --jump --esp --eip     position then code then code jump
 
 
 //tools
@@ -85,13 +80,14 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 //regenerate esp code
 //make sure new esp code == last esp code
 
-//esp code should be able to go all the way up to FFFF FFFF
+//esp and code should be able to go all the way up to FFFF FFFF
 
 //if jump mode specified and jump address given, then at the end position the jmp for new bytes, store the byte len, redo calcs, then check if equal
 
+//idea: make a mini toolkit just for generating ascii safe versions of common commands without wrapping
+//also a jump calculator etc etc
 
-
-//prog.exe --code "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
-//prog.exe --jump 3b8ef330 --esp 3b8eff20 --eip 3b8ef030                        JUMP
-//prog.exe --code "\x33\x00\x90\x01\xFF"                                        JUST CREATE THE wrap CODE
-//prog.exe --esp 3b8eff20 --eip 3b8ef030 --store
+//TEST COMMAND
+//[pos]+[add esp,0x300]+[jmp]
+//incode.exe --esp 19CF54 --eip 197758 --code "81 c4 00 03 00 00" --jump 19D588
+//then after that ill need some code to put esp in ecx

@@ -13,7 +13,7 @@ const ESP: &str  = "--esp";
 const EIP: &str  = "--eip";
 const JUMP: &str = "--jump";
 const HELP: &str = "--help";
-pub const SEE_HELP: &str = "Use --help for usage.";
+pub const SEE_HELP: &str = "Try --help for usage.";
 const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
 This is a tool I wrote for personal security research. I obviously accept no responsibility for how other
 people use it.
@@ -149,7 +149,7 @@ pub fn get_input() -> DynResult<UserInput> {
     else if args.len() == 1 {
         match args.next().unwrap() {
             s if s==HELP => dynerr!(HelpMessage),
-            s if s.starts_with("--") => dynerr!(BadArg(s)),
+            s if s.starts_with("-") => dynerr!(BadArg(s)),
             byte_string  => match parse_bytes(&byte_string) {
                 Ok(bytes) => input.code = Some(bytes),
                 Err(e)    => dynmatch!(e,
@@ -194,21 +194,3 @@ pub fn get_input() -> DynResult<UserInput> {
     }
     Ok(input)
 }
-
-//prog.exe --wrap "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                  ENCODE INSTRUCTIONS
-//prog.exe --jump 3b8ef330 --esp 3b8eff20 --eip 3b8ef030                                JUMP
-//prog.exe --wrap "\x33\x00\x90\x01\xFF"                                                JUST CREATE THE WRAP CODE
-//prog.exe --esp 3b8eff20 --eip 3b8ef030
-
-//--wrap (bytes)
-//--esp (addr)
-//--eip (addr)
-//--jump (addr)
-
-//nothing specified just bytes then wrap
-
-//--esp --eip           adjust
-//--wrap --esp --eip    adjust then wrap
-//--wrap                wrap code
-//--jump                wrap jump
-//--jump --esp --eip    adjust then wrap jump
