@@ -1,9 +1,5 @@
 use std::mem::transmute;
 
-
-
-
-
 /// converts a u32 into its corresponding bytes
 pub fn get_bytes_u32(val: u32) -> [u8;4] {
     let bytes: [u8;4] = unsafe { transmute(val.to_le()) };

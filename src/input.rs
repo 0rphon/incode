@@ -5,6 +5,7 @@ use std::env::args;
 
 use itertools::Itertools;
 use regex::Regex;
+use std::num;
 
 
 const CODE: &str = "--code";
@@ -12,7 +13,7 @@ const ESP: &str  = "--esp";
 const EIP: &str  = "--eip";
 const JUMP: &str = "--jump";
 const HELP: &str = "--help";
-const SEE_HELP: &str = "Use --help for usage.";
+pub const SEE_HELP: &str = "Use --help for usage.";
 const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
 This is a tool I wrote for personal security research. I obviously accept no responsibility for how other 
 people use it. Stay safe and stop breaking the law kiddos.
@@ -41,19 +42,23 @@ pub enum InputError {
     MissingArg(String),
     NoArgs,
     ParseError(String, String),
-    NullParse,
+    BadBytes(String),
+    BadAddress(String),
+    InvalidAddress(String),
     HelpMessage,
 }
 //impl display formatting for error
 impl fmt::Display for InputError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::BadArg(s)       => write!(f, "InputError::BadArg: Failed to parse arg: \"{}\". {}",s, SEE_HELP),
-            Self::MissingArg(s)   => write!(f, "InputError::MissingArg: Must specify value after {}. {}",s, SEE_HELP),
-            Self::NoArgs          => write!(f, "InputError::NoArgs: No arguments supplied! {}", SEE_HELP),
-            Self::ParseError(s,e) => write!(f, "InputError::ParseError: Attempt to parse bytes \"{}\" returned: {}. {}",s, e, SEE_HELP),
-            Self::NullParse       => write!(f, "InputError::NullParse: Parser found zero valid characters in input"),
-            Self::HelpMessage     => write!(f, "{}", HELP_MESSAGE),
+            Self::BadArg(s)         => write!(f, "InputError::BadArg: Failed to parse arg: \"{}\". {}",s, SEE_HELP),
+            Self::MissingArg(s)     => write!(f, "InputError::MissingArg: Must specify value after {}. {}",s, SEE_HELP),
+            Self::NoArgs            => write!(f, "InputError::NoArgs: No arguments supplied! {}", SEE_HELP),
+            Self::ParseError(s,e)   => write!(f, "InputError::ParseError: Attempt to parse bytes \"{}\" returned: {}. {}",s, e, SEE_HELP),
+            Self::BadBytes(s)       => write!(f, "InputError::BadBytes: Parser found zero valid characters in given bytes \"{}\". {}",s,SEE_HELP),
+            Self::BadAddress(s)     => write!(f, "InputError::BadAddress: Parser found zero valid characters in given address \"{}\". {}",s,SEE_HELP),
+            Self::InvalidAddress(s) => write!(f, "InputError::InvalidAddress: Given address not within 32bit address range \"{}\". {}",s,SEE_HELP),
+            Self::HelpMessage       => write!(f, "{}", HELP_MESSAGE),
 
         }
     }
@@ -93,7 +98,7 @@ fn strip_hex(input: &str) -> String {
 ///parses input for its hex values
 fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     let mut parsed = strip_hex(input);
-    if parsed.len() == 0 {dynerr!(NullParse)}
+    if parsed.len() == 0 {dynerr!(BadBytes(input.to_string()))}
     if parsed.len()%2 != 0 {parsed.insert(0,'0')}
     let mut bytes = parsed.chars().chunks(2).into_iter()
         .map(|b| Ok(u8::from_str_radix(&b.collect::<String>(), 16)?))
@@ -105,7 +110,16 @@ fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
 
 fn parse_addr(input: &str) -> DynResult<u32> {
     let parsed = strip_hex(input);
-    Ok(u32::from_str_radix(&parsed, 16)?)
+    if parsed.len() == 0 {dynerr!(BadAddress(input.to_string()))}
+    match u32::from_str_radix(&parsed, 16) {
+        Ok(addr) => Ok(addr),
+        Err(e) if *e.kind() == num::IntErrorKind::Overflow => {
+            dynerr!(InvalidAddress(input.to_string()))
+        },
+        Err(e)   => {
+            dynerr!(ParseError(input.to_string(), e.to_string()))
+        }
+    }
 }
 
 pub fn get_input() -> DynResult<UserInput> {
@@ -117,11 +131,15 @@ pub fn get_input() -> DynResult<UserInput> {
     else if args.len() == 1 {
         match args.next().unwrap() {
             s if s==HELP => dynerr!(HelpMessage),
-            byte_string  => {
-                match parse_bytes(&byte_string) {
-                    Ok(bytes) => input.code = Some(bytes),
-                    Err(e)    => dynerr!(ParseError(byte_string.to_string(), e.to_string())),
-                };
+            s if s.starts_with("--") => dynerr!(BadArg(s)),
+            byte_string  => match parse_bytes(&byte_string) {
+                Ok(bytes) => input.code = Some(bytes),
+                Err(e)    => dynmatch!(e,
+                    type InputError {
+                        arm BadBytes(_) => return Err(e),
+                        _ => dynerr!(ParseError(byte_string.to_string(), e.to_string()))
+                    },  _ => dynerr!(ParseError(byte_string.to_string(), e.to_string()))
+                ),
             }
         }
         return Ok(input)
