@@ -1,31 +1,8 @@
-use dynerr::*;
-
-use std::convert::TryInto;
-use itertools::Itertools;
 use std::mem::transmute;
-use regex::Regex;
 
 
-///parses input for its hex values
-pub fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
-    let mut parsed = Regex::new(r"(0x)|[^A-Fa-f0-9]")?
-        .replace_all(&input, "").to_string();
-    if parsed.len()%2 != 0 {parsed.insert(0,'0')}
-    let mut bytes = parsed.chars().chunks(2).into_iter()
-        .map(|b| Ok(u8::from_str_radix(&b.collect::<String>(), 16)?))
-        .collect::<DynResult<Vec<u8>>>()?;
-    let pad = bytes.len() % 4;
-    if pad != 0 {bytes.extend(vec!(0x90;4-pad))}
-    Ok(bytes)
-}
 
-///gets dwords out of a byte array
-pub fn get_dwords(bytes: &Vec<u8>) -> Vec<[u8;4]> {
-    let mut words = bytes.chunks_exact(4).map(|b| b.try_into().unwrap())
-        .collect::<Vec<[u8;4]>>();
-    words.reverse();
-    words
-}
+
 
 /// converts a u32 into its corresponding bytes
 pub fn get_bytes_u32(val: u32) -> [u8;4] {
