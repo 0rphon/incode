@@ -36,14 +36,12 @@ impl EncodeData {
     fn check_encode(bytes: [u8;4], reg: [u8;4]) -> Self {
         let target = get_u32(bytes);
         let reg = get_u32(reg);
-        println!("{:08X?} -> {:08X?}",reg,target);
         let mut results = Vec::new();
         results.push(Self::check_add(target, reg));
         results.push(Self::check_sub(target, reg));
         results.push(Self::check_xor_add(target));
         results.push(Self::check_xor_sub(target));
         results.sort_by(|a,b| a.values.len().cmp(&b.values.len()));
-        for result in &results {println!("{:02X?}",result)}
         results[0].clone()
     }
     fn check_add(tar: u32, reg: u32) -> Self {
