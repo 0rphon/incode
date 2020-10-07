@@ -93,13 +93,13 @@ fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     let mut bytes = parsed.chars().chunks(2).into_iter()
         .map(|b| Ok(u8::from_str_radix(&b.collect::<String>(), 16)?))
         .collect::<DynResult<Vec<u8>>>()?;
-    for _ in 0..4-(bytes.len()%4) {bytes.push(0x90)}
+    let pad = bytes.len()%4;
+    if pad != 0 {bytes.extend(vec!(0x90;4-pad))}
     Ok(bytes)
 }
 
 fn parse_addr(input: &str) -> DynResult<u32> {
-    let mut parsed = strip_hex(input);
-    for _ in 0..4-(parsed.len()%4) {parsed.insert(0,'0')}
+    let parsed = strip_hex(input);
     Ok(u32::from_str_radix(&parsed, 16)?)
 }
 

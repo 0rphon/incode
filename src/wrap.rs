@@ -205,7 +205,8 @@ pub fn wrap(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
     output.extend(xor());
     let mut reg = [0x00_u8,0,0,0x00];
     for word in words {
-        if word.iter().any(|b| *b>0x7F||*b==0) {
+        if word == reg {output.push(post())}
+        else if word.iter().any(|b| *b>0x7F||*b==0) {
             use EncodeStyle::*;
             let action = EncodeData::check_encode(word, reg);
             match action {
