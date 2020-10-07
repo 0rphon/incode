@@ -185,7 +185,7 @@ pub fn display_instructions(output: (Vec<Vec<u8>>, Vec<[u8;4]>)) {
                     ADD_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
                 ),
-                _ => panic!("Error while formatting. Contact the Dev.")
+                _ => panic!("Error while formatting. Contact the Dev.")                     //TEMP
             }
         );
     }
@@ -231,7 +231,7 @@ pub fn wrap(bytes: &Vec<u8>) -> (Vec<Vec<u8>>,  Vec<[u8;4]>) {
                     output.extend(xor());
                     output.extend(encode_action(SUB, e.values));
                 },
-                _ => {panic!("Error while matching. Contact the dev")}
+                _ => panic!("Error while matching. Contact the dev")                    //TEMP
             }
             output.push(post());
             reg = *word;
