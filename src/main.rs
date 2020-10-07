@@ -18,7 +18,7 @@ fn main() {
             type input::InputError {
                 arm input::InputError::HelpMessage => exit(0),
                 _   => exit(1)
-            },  _   => exit(1)
+            },  _   => exit(2)
         )
     });
     let (esp, eip, jump, code) = (
@@ -46,10 +46,10 @@ fn do_code(input: input::UserInput) {
     println!("Payload size: {} bytes", output.0.iter().flatten().count());
     display_instructions(output);
 }
-fn do_adjust() {println!("Not Implemented yet. Sorry!")}
-fn do_adjust_code() {println!("Not Implemented yet. Sorry!")}
-fn do_adjust_jump() {println!("Not Implemented yet. Sorry!")}
-fn do_adjust_code_jump() {println!("Not Implemented yet. Sorry!")}
+fn do_adjust(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_adjust_code(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_adjust_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_adjust_code_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 
 //--code                        wrap code
 //--esp --eip                   adjust
@@ -85,4 +85,4 @@ fn do_adjust_code_jump() {println!("Not Implemented yet. Sorry!")}
 //prog.exe --code "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
 //prog.exe --jump 3b8ef330 --esp 3b8eff20 --eip 3b8ef030                        JUMP
 //prog.exe --code "\x33\x00\x90\x01\xFF"                                        JUST CREATE THE wrap CODE
-//prog.exe --esp 3b8eff20 --eip 3b8ef030
+//prog.exe --esp 3b8eff20 --eip 3b8ef030 --store

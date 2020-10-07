@@ -36,12 +36,14 @@ impl EncodeData {
     fn check_encode(bytes: [u8;4], reg: [u8;4]) -> Self {
         let target = get_u32(bytes);
         let reg = get_u32(reg);
+        println!("{:08X?} -> {:08X?}",reg,target);
         let mut results = Vec::new();
         results.push(Self::check_add(target, reg));
         results.push(Self::check_sub(target, reg));
         results.push(Self::check_xor_add(target));
         results.push(Self::check_xor_sub(target));
         results.sort_by(|a,b| a.values.len().cmp(&b.values.len()));
+        for result in &results {println!("{:02X?}",result)}
         results[0].clone()
     }
     fn check_add(tar: u32, reg: u32) -> Self {
@@ -81,7 +83,6 @@ impl EncodeData {
     }
 
     fn get_data(dif: u32) -> Vec<u32> {
-        if get_bytes_u32(dif)[0] == 0 {return vec!(0;10)}
         let (times, rem) = (dif/0x7F7F7F7F,dif%0x7F7F7F7F);
         let mut values = vec!(0x7F7F7F7F;times as usize);
         if rem!=0 {
@@ -129,6 +130,9 @@ impl EncodeData {
     }
 }
 
+//00000000 -> 90009000
+
+//
 
 
 //just creates an xor instruction
@@ -238,12 +242,6 @@ pub fn wrap(bytes: &Vec<u8>) -> (Vec<Vec<u8>>,  Vec<[u8;4]>) {
             ins.insert(0, PUSH_VAL);
             output.push(ins)
         }
-    }
-    let xor_len = xor().len();
-    if output[0..xor_len] == xor()[..]
-    && output[xor_len..xor_len+xor_len] == xor()[..] {
-        println!("Output had duplicate values. Its been adjusted, but please contact the dev");
-        output.drain(0..xor_len);
     }
     (output, words)
 }

@@ -41,17 +41,20 @@ pub enum InputError {
     MissingArg(String),
     NoArgs,
     ParseError(String, String),
+    NullParse,
     HelpMessage,
 }
 //impl display formatting for error
 impl fmt::Display for InputError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::BadArg(s)       => write!(f, "BadArg: Failed to parse arg: {}. {}",s, SEE_HELP),
-            Self::MissingArg(s)   => write!(f, "MissingArg: Must specify value after {}. {}",s, SEE_HELP),
-            Self::NoArgs          => write!(f, "NoArgs: No arguments supplied! {}", SEE_HELP),
-            Self::ParseError(s,e) => write!(f, "ParseError: Attempt to parse bytes {} returned {}. {}",s, e, SEE_HELP),
+            Self::BadArg(s)       => write!(f, "InputError::BadArg: Failed to parse arg: \"{}\". {}",s, SEE_HELP),
+            Self::MissingArg(s)   => write!(f, "InputError::MissingArg: Must specify value after {}. {}",s, SEE_HELP),
+            Self::NoArgs          => write!(f, "InputError::NoArgs: No arguments supplied! {}", SEE_HELP),
+            Self::ParseError(s,e) => write!(f, "InputError::ParseError: Attempt to parse bytes \"{}\" returned: {}. {}",s, e, SEE_HELP),
+            Self::NullParse       => write!(f, "InputError::NullParse: Parser found zero valid characters in input"),
             Self::HelpMessage     => write!(f, "{}", HELP_MESSAGE),
+
         }
     }
 }
@@ -63,6 +66,7 @@ impl error::Error for InputError {}
 
 
 
+#[derive(Debug)]
 pub struct UserInput {
     pub code: Option<Vec<u8>>,
     pub esp: Option<u32>,
@@ -89,6 +93,7 @@ fn strip_hex(input: &str) -> String {
 ///parses input for its hex values
 fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     let mut parsed = strip_hex(input);
+    if parsed.len() == 0 {dynerr!(NullParse)}
     if parsed.len()%2 != 0 {parsed.insert(0,'0')}
     let mut bytes = parsed.chars().chunks(2).into_iter()
         .map(|b| Ok(u8::from_str_radix(&b.collect::<String>(), 16)?))
