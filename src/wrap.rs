@@ -157,7 +157,9 @@ fn encode_action(op: u8, lines: Vec<u32>) -> Vec<Vec<u8>> {
 
 
 ///displays the corresponding opcodes for a byte array
-pub fn display_instructions(instructions: Vec<Vec<u8>>) {
+pub fn display_instructions(output: (Vec<Vec<u8>>, Vec<[u8;4]>)) {
+    let (instructions, words) = output;
+    let mut words = words.into_iter();
     for ins in instructions {
         println!("{:<24} //{}",
             format_bytes(&ins),
@@ -165,7 +167,10 @@ pub fn display_instructions(instructions: Vec<Vec<u8>>) {
                 i if i == PUSH_ONE       => PUSH_ONE_INS.to_string(),
                 i if i == POP_EAX        => POP_EAX_INS.to_string(),
                 i if i == XOR_AL         => XOR_AL_INS.to_string(),
-                i if i == PUSH_EAX       => PUSH_EAX_INS.to_string(),
+                i if i == PUSH_EAX       => format!("{:<20}{:02X?}",
+                    PUSH_EAX_INS.to_string(),
+                    words.next().unwrap()
+                ),
                 i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}",
                     PUSH_VAL_INS,
                     get_u32([i[1], i[2], i[3], i[4]])
@@ -199,16 +204,16 @@ pub fn get_dwords(bytes: &Vec<u8>) -> Vec<[u8;4]> {
 
 
 
-pub fn wrap(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
+pub fn wrap(bytes: &Vec<u8>) -> (Vec<Vec<u8>>,  Vec<[u8;4]>) {
     let words = get_dwords(bytes);
     let mut output = vec!();
     output.extend(xor());
     let mut reg = [0x00_u8,0,0,0x00];
-    for word in words {
-        if word == reg {output.push(post())}
+    for word in &words {
+        if *word == reg {output.push(post())}
         else if word.iter().any(|b| *b>0x7F||*b==0) {
             use EncodeStyle::*;
-            let action = EncodeData::check_encode(word, reg);
+            let action = EncodeData::check_encode(*word, reg);
             match action {
                 e if e.style == Add    => {
                     output.extend(encode_action(ADD, e.values));
@@ -227,7 +232,7 @@ pub fn wrap(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
                 _ => {panic!("Error while matching. Contact the dev")}
             }
             output.push(post());
-            reg = word;
+            reg = *word;
         } else {
             let mut ins = word.to_vec();
             ins.insert(0, PUSH_VAL);
@@ -240,5 +245,5 @@ pub fn wrap(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
         println!("Output had duplicate values. Its been adjusted, but please contact the dev");
         output.drain(0..xor_len);
     }
-    output
+    (output, words)
 }

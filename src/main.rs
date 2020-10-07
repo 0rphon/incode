@@ -43,7 +43,7 @@ fn do_code(input: input::UserInput) {
     let bytes = input.code.unwrap();
     println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
     let output = wrap(&bytes);
-    println!("Payload size: {} bytes", output.iter().flatten().count());
+    println!("Payload size: {} bytes", output.0.iter().flatten().count());
     display_instructions(output);
 }
 fn do_adjust() {println!("Not Implemented yet. Sorry!")}
