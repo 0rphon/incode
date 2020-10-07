@@ -34,13 +34,13 @@ Usage:
 
 Examples:
     Generate ASCII wrapped payload that decodes given values in memory:
-        incode.exe --code \\xF3\\xE9\\xB8\\x00\\x33\\x4A\\x41
+        incode.exe \\xF3\\xE9\\xB8\\x00\\x33\\x4A\\x41
 
     (UNIMPLEMENTED) Generate shellcode to position esp at your location:                                  
         incode.exe --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]:                                        
-        incode.exe --code \"F3 E9 B8 00 33 4A 41\" --esp 45D308 --eip 457B00
+        incode.exe --code F3E9B800334A41 --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped far jump]:                                       
         incode.exe --jump 463303 --esp 45D308 --eip 457B00

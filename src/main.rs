@@ -84,10 +84,13 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 
 //if jump mode specified and jump address given, then at the end position the jmp for new bytes, store the byte len, redo calcs, then check if equal
 
-//idea: make a mini toolkit just for generating ascii safe versions of common commands without wrapping
-//also a jump calculator etc etc
-
 //TEST COMMAND
 //[pos]+[add esp,0x300]+[jmp]
 //incode.exe --esp 19CF54 --eip 197758 --code "81 c4 00 03 00 00" --jump 19D588
 //then after that ill need some code to put esp in ecx
+
+
+//TODO
+//idea: make a mini toolkit just for generating ascii safe versions of common commands without wrapping
+//also a jump calculator etc etc
+//make it so --code is optional if bytes were the first thing specified
