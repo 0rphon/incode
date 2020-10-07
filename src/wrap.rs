@@ -167,9 +167,9 @@ pub fn display_instructions(output: (Vec<Vec<u8>>, Vec<[u8;4]>)) {
                 i if i == PUSH_ONE       => PUSH_ONE_INS.to_string(),
                 i if i == POP_EAX        => POP_EAX_INS.to_string(),
                 i if i == XOR_AL         => XOR_AL_INS.to_string(),
-                i if i == PUSH_EAX       => format!("{:<20}{:02X?}",
-                    PUSH_EAX_INS.to_string(),
-                    words.next().unwrap()
+                i if i == PUSH_EAX       => format!("{:<20}(pushed {:08X})",
+                    PUSH_EAX_INS,
+                    get_u32(words.next().unwrap())
                 ),
                 i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}",
                     PUSH_VAL_INS,
