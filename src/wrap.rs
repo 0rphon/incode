@@ -1,6 +1,7 @@
 use super::translate::{get_u32, get_bytes_u32, format_bytes};
 
 use std::u8;
+use std::convert::TryInto;
 
 const PUSH_ONE: [u8;2]      = [0x6A, 0x01];
 const PUSH_ONE_INS: &str    = "push   0x1";
@@ -57,14 +58,22 @@ impl EncodeData {
         }
     }
     fn check_sub(tar: u32, reg: u32) -> Self {
-        let dif = if tar < reg {reg-tar} else {(0xFFFFFFFF-tar+1)+reg};
+        let dif = {
+            if tar < reg {reg-tar} 
+            else {
+                0xFFFFFFFF_u32
+                    .overflowing_sub(tar).0
+                    .overflowing_add(1).0
+                    .overflowing_add(reg).0
+            }
+        };
         Self {
             style: EncodeStyle::Sub,
             values: Self::get_data(dif),
         }
     }
     fn check_xor_sub(tar: u32) -> Self {
-        let dif = (0xFFFFFFFF-tar)+1;
+        let dif = (0xFFFFFFFF-tar).overflowing_add(1).0;
         Self {
             style: EncodeStyle::XorSub,
             values: Self::get_data(dif),
@@ -178,10 +187,20 @@ pub fn display_instructions(instructions: Vec<Vec<u8>>) {
 
 
 
+///gets dwords out of a byte array
+pub fn get_dwords(bytes: &Vec<u8>) -> Vec<[u8;4]> {
+    let mut words = bytes.chunks_exact(4).map(|b| b.try_into().unwrap())
+        .collect::<Vec<[u8;4]>>();
+    words.reverse();
+    words
+}
 
 
 
-pub fn wrap(words: Vec<[u8;4]>) -> Vec<Vec<u8>> {
+
+
+pub fn wrap(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
+    let words = get_dwords(bytes);
     let mut output = vec!();
     output.extend(xor());
     let mut reg = [0x00_u8,0,0,0x00];

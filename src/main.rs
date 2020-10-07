@@ -1,23 +1,61 @@
 mod wrap;
 mod translate;
+mod input;
 use wrap::{wrap, display_instructions};
-use translate::{parse_bytes, get_dwords};
+use dynerr::*;
 
-use std::env::args;
+use std::process::exit;
+
+const WELCOME_MESSAGE: &str = "InCode: for encoding your code in code to run in other peoples code!\nCreated by 0rphon\n";
+
 
 fn main() {
-    let input = {
-        if let Some(arg) = args().nth(1) {arg}
-        else {panic!("No arg passed!")}
-    };
-    let bytes = parse_bytes(&input).unwrap();
-    println!("Parsed {} bytes: {:02X?}", bytes.len(), bytes);
-    let words = get_dwords(&bytes);
+    println!("{}",WELCOME_MESSAGE);
 
-    let output = wrap(words);
+    let input = input::get_input().unwrap_or_else(|e| {
+        println!("{}",e);
+        dynmatch!(e,
+            type input::InputError {
+                arm input::InputError::HelpMessage => exit(0),
+                _   => exit(1)
+            },  _   => exit(1)
+        )
+    });
+    let (esp, eip, jump, code) = (
+        input.esp.is_some(), 
+        input.eip.is_some(), 
+        input.jump.is_some(), 
+        input.code.is_some()
+    );
+
+    if code {do_code(input)}                    //wrap code
+    else if esp && eip {}                       //position
+    else if esp && eip && code {}               //position & wrap code
+    else if esp && eip && jump {}               //position & code jump
+    else if esp && eip && code && jump {}       //position, wrap code, & jump
+    
+    else if esp != eip {}                       //must supply both esp and eip
+    else if jump && (!esp||!eip) {}             //must supply esp and eip to jump
+    else {}                                     //no args..i think
+}
+
+fn do_code(input: input::UserInput) {
+    let bytes = input.code.unwrap();
+    println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
+    let output = wrap(&bytes);
     println!("Payload size: {} bytes", output.iter().flatten().count());
     display_instructions(output);
 }
+fn do_adjust() {println!("Not Implemented yet. Sorry!")}
+fn do_adjust_code() {println!("Not Implemented yet. Sorry!")}
+fn do_adjust_jump() {println!("Not Implemented yet. Sorry!")}
+fn do_adjust_code_jump() {println!("Not Implemented yet. Sorry!")}
+
+//--code                        wrap code
+//--esp --eip                   adjust
+//--code --esp --eip            adjust then code
+//--jump --esp --eip            adjust then code jump
+//--code --jump --esp --eip     adjust then code then code jump
 
 
 //tools
@@ -44,7 +82,7 @@ fn main() {
 
 
 
-//prog.exe --wrap "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
+//prog.exe --code "\x33\x00\x90\x01\xFF" --esp 3b8eff20 --eip 3b8ef030                 ENCODE INSTRUCTIONS
 //prog.exe --jump 3b8ef330 --esp 3b8eff20 --eip 3b8ef030                        JUMP
-//prog.exe --wrap "\x33\x00\x90\x01\xFF"                                        JUST CREATE THE WRAP CODE
+//prog.exe --code "\x33\x00\x90\x01\xFF"                                        JUST CREATE THE wrap CODE
 //prog.exe --esp 3b8eff20 --eip 3b8ef030
