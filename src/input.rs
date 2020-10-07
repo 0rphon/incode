@@ -15,24 +15,38 @@ const JUMP: &str = "--jump";
 const HELP: &str = "--help";
 pub const SEE_HELP: &str = "Use --help for usage.";
 const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
-This is a tool I wrote for personal security research. I obviously accept no responsibility for how other 
-people use it. Stay safe and stop breaking the law kiddos.
+This is a tool I wrote for personal security research. I obviously accept no responsibility for how other
+people use it.
 
 Usage:
-    --help:             Show this screen and exit.
-
-    --code [bytes]:     Encode an instruction in x86 ascii shellcode that gets decoded to [esp] at runtime.
+    --code [bytes]:     Wrap an instruction in x86 ascii shellcode that gets decoded to [esp] at runtime.
 
     --esp [addr] --eip [addr]:
-                        What the addresses of ESP and EIP will be at the start of this payload. While these 
-                        values wont stay the same between runs, their difference will. Use this if you want 
-                        the payload to handle unpacking and jumping on its own.
+                        What the addresses of ESP and EIP will be at the first byte of this payload. While 
+                        these values wont stay the same between runs, their difference will. Use this if 
+                        you want the payload to handle unpacking on its own.
 
-    --jump [addr]:      Generate an encoded far jump instruction from your current location. Requires --esp 
-                        and --eip to be set. It will handle esp positioning for you.
-    
-    Examples:
-        TODO";
+    --jump [addr]:      Generate a wrapped far jump from [eip] to [addr] that gets decoded to [esp] at 
+                        runtime. Requires --esp and --eip to be set. It will handle esp positioning for 
+                        you.
+
+    --help:             Show this screen and exit.
+
+Examples:
+    Generate ASCII wrapped payload that decodes given values in memory:
+        incode.exe --code \\xF3\\xE9\\xB8\\x00\\x33\\x4A\\x41
+
+    (UNIMPLEMENTED) Generate shellcode to position esp at your location:                                  
+        incode.exe --esp 45D308 --eip 457B00
+
+    (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]:                                        
+        incode.exe --code \"F3 E9 B8 00 33 4A 41\" --esp 45D308 --eip 457B00
+
+    (UNIMPLEMENTED) Generate [positioning code]+[wrapped far jump]:                                       
+        incode.exe --jump 463303 --esp 45D308 --eip 457B00
+
+    (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]+[wrapped far jump]:                       
+        incode.exe --code \"0xF3 0xE9 0xB8 0x00 0x33 0x4A 0x41\" --jump 463303 --esp 45D308 --eip 457B00";
 
 use InputError::*;
 ///a custom error type
@@ -71,6 +85,7 @@ impl error::Error for InputError {}
 
 
 
+///stores user input
 #[derive(Debug)]
 pub struct UserInput {
     pub code: Option<Vec<u8>>,
@@ -90,12 +105,13 @@ impl UserInput {
     }
 }
 
+///strips non hex characters from a string
 fn strip_hex(input: &str) -> String {
     Regex::new(r"(0x)|[^A-Fa-f0-9]").unwrap()
         .replace_all(&input, "").to_string()
 }
 
-///parses input for its hex values
+///parses input for its hex bytes
 fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     let mut parsed = strip_hex(input);
     if parsed.len() == 0 {dynerr!(BadBytes(input.to_string()))}
@@ -108,6 +124,7 @@ fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     Ok(bytes)
 }
 
+///parses input for hex u32 value
 fn parse_addr(input: &str) -> DynResult<u32> {
     let parsed = strip_hex(input);
     if parsed.len() == 0 {dynerr!(BadAddress(input.to_string()))}
@@ -122,6 +139,7 @@ fn parse_addr(input: &str) -> DynResult<u32> {
     }
 }
 
+///parses user args
 pub fn get_input() -> DynResult<UserInput> {
     let mut args = args().skip(1);
     let mut input = UserInput::new_empty();
