@@ -104,3 +104,12 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 //idea: make a mini toolkit just for generating ascii safe versions of common commands without wrapping
 //also a jump calculator etc etc
 //make it so --code is optional if bytes were the first thing specified
+
+
+
+
+//append the add/sub instruction during the calculation step to get rid of the junk
+//add xor/or/and modes
+//xor = 0x35
+//and = 0x25
+//or  = 0x0D

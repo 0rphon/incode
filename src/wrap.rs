@@ -7,16 +7,20 @@ const PUSH_ONE: [u8;2]      = [0x6A, 0x01];
 const PUSH_ONE_INS: &str    = "push   0x1";
 const POP_EAX: [u8;1]       = [0x58];
 const POP_EAX_INS: &str     = "pop    eax";
-const XOR_AL: [u8;2]        = [0x34, 0x01];
-const XOR_AL_INS: &str      = "xor    al,0x1";
+const DEC_EAX: [u8;1]       = [0x48];
+const DEX_EAX_INS: &str     = "dec    eax";
+
 const SUB: u8               = 0x2D;
 const SUB_INS: &str         = "sub";
+
 const ADD: u8               = 0x05;
 const ADD_INS: &str         = "add";
+
 const PUSH_EAX: [u8;1]      = [0x50];
 const PUSH_EAX_INS: &str    = "push   eax";
-const PUSH_VAL: u8       = 0x68;
-const PUSH_VAL_INS: &str = "push";
+
+const PUSH_VAL: u8          = 0x68;
+const PUSH_VAL_INS: &str    = "push";
 
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -42,7 +46,7 @@ impl EncodeData {
         results.push(Self::check_xor_add(target));
         results.push(Self::check_xor_sub(target));
         results.sort_by(|a,b| a.values.len().cmp(&b.values.len()));
-        results[0].clone()
+        results.remove(0)
     }
     fn check_add(tar: u32, reg: u32) -> Self {
         let dif = if tar > reg {tar-reg} else {(0xFFFFFFFF-reg)+tar};
@@ -61,9 +65,7 @@ impl EncodeData {
         let dif = {
             if tar < reg {reg-tar} 
             else {
-                0xFFFFFFFF_u32
-                    .overflowing_sub(tar).0
-                    .overflowing_add(1).0
+                0_u32.overflowing_sub(tar).0
                     .overflowing_add(reg).0
             }
         };
@@ -73,7 +75,7 @@ impl EncodeData {
         }
     }
     fn check_xor_sub(tar: u32) -> Self {
-        let dif = (0xFFFFFFFF-tar).overflowing_add(1).0;
+        let dif = 0_u32.overflowing_sub(tar).0;
         Self {
             style: EncodeStyle::XorSub,
             values: Self::get_data(dif),
@@ -138,7 +140,7 @@ fn xor() -> Vec<Vec<u8>> {
     vec!(
         PUSH_ONE.to_vec(),
         POP_EAX.to_vec(),
-        XOR_AL.to_vec()
+        DEC_EAX.to_vec()
     )
 }
 
@@ -168,7 +170,7 @@ pub fn display_instructions(output: (Vec<Vec<u8>>, Vec<[u8;4]>)) {
             match ins {
                 i if i == PUSH_ONE       => PUSH_ONE_INS.to_string(),
                 i if i == POP_EAX        => POP_EAX_INS.to_string(),
-                i if i == XOR_AL         => XOR_AL_INS.to_string(),
+                i if i == DEC_EAX        => DEX_EAX_INS.to_string(),
                 i if i == PUSH_EAX       => format!("{:<20}(pushed {:08X})",
                     PUSH_EAX_INS,
                     get_u32(words.next().unwrap())
