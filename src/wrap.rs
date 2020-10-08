@@ -68,9 +68,9 @@ impl Instruction {
     }
 
     /// pushes eax to the stack
-    /// has the option to take a register value to display in the mnemonic
-    fn push_eax(reg: Option<u32>) -> Self {
-        Self::construct(OpCode::PushEax(reg))
+    /// has the option to take the current eax value to display in the mnemonic
+    fn push_eax(eax: Option<u32>) -> Self {
+        Self::construct(OpCode::PushEax(eax))
     }
 
     /// creates instruction to push the given value to the stack
@@ -138,14 +138,16 @@ impl WrappedInstructions {
             .combine(Self::check_sub(target, 0)));
         results.sort_by(|a,b| a.len.cmp(&b.len));
         let best = results.remove(0);
-        if best.instructions.len() > 10 {panic!("Couldn't encode payload! Please contact the dev with a sample so this issue can be fixed!")}
+        if best.instructions.len() > 10 {
+            panic!("Couldn't encode payload! Please contact the dev with a sample so this issue can be fixed!")
+        }
         best
     }
 
     /// generates WrappedInstructions to add eax to the target value
     fn check_add(tar: u32, eax: u32) -> Self {
         let dif = if tar > eax {tar-eax} else {(0xFFFFFFFF-eax)+tar};
-        let instructions = Self::get_values(dif).into_iter().map(|val|
+        let instructions = Self::gen_values(dif).into_iter().map(|val|
             Instruction::construct(OpCode::AddEax(val))
         ).collect::<Vec<Instruction>>();
         Self::new(instructions)
@@ -160,37 +162,16 @@ impl WrappedInstructions {
                     .overflowing_add(eax).0
             }
         };
-        let instructions = Self::get_values(dif).into_iter().map(|val|
+        let instructions = Self::gen_values(dif).into_iter().map(|val|
             Instruction::construct(OpCode::SubEax(val))
         ).collect::<Vec<Instruction>>();
         Self::new(instructions)
     }
 
     /// generates ascii safe values that add up to dif
-    fn get_values(dif: u32) -> Vec<u32> {
-        let (times, rem) = (dif/0x7F7F7F7F,dif%0x7F7F7F7F);
-        let mut values = vec!(0x7F7F7F7F;times as usize);
-        if rem!=0 {
-            values.push(rem);
-            //if remainder valid then its all good
-            if get_bytes_u32(rem).iter().all(|b| *b<=0x7F&&*b!=0) {
-                return values
-            }
-            //if only one val and val has null byte then bad
-            if values.len()==1
-            && get_bytes_u32(rem).iter().any(|b| *b==0) {
-                return vec!(0;10)
-            }
-            //if remainder not valid start equalizing
-            values = Self::equalize(values);
-        }
-        //values
-        values
-    }
-
-    /// equalizes a set of values to be ascii safe. will add more values if needed
-    fn equalize(values: Vec<u32>) -> Vec<u32> {
-        let mut lines = values.iter().map(|v| get_bytes_u32(*v)).collect::<Vec<[u8;4]>>();
+    /// returns vec of 10 zeros if failed
+    fn gen_values(dif: u32) -> Vec<u32> {
+        let mut lines = vec!(get_bytes_u32(dif));
         loop {
             for line in 0..lines.len() {
                 for byte in 0..lines[line].len() {
@@ -238,14 +219,14 @@ pub fn get_dwords(mut bytes: Vec<u8>) -> Vec<[u8;4]> {
 pub fn wrap(bytes: &Vec<u8>) -> WrappedInstructions {
     let words = get_dwords(bytes.clone());
     let mut output = WrappedInstructions::new(Instruction::zero_eax());
-    let mut reg = [0_u8,0,0,0];
+    let mut eax = [0_u8,0,0,0];
     for word in &words {
-        if *word == reg {output.push(Instruction::push_eax(Some(get_u32(reg))))}
+        if *word == eax {output.push(Instruction::push_eax(Some(get_u32(eax))))}
         else if word.iter().any(|b| *b>0x7F||*b==0) {
-            let action = WrappedInstructions::wrap(*word, reg);
+            let action = WrappedInstructions::wrap(*word, eax);
             output.extend(action);
-            reg = *word;
-            output.push(Instruction::push_eax(Some(get_u32(reg))));
+            eax = *word;
+            output.push(Instruction::push_eax(Some(get_u32(eax))));
         } else {
             output.push(Instruction::push_u32(get_u32(*word)));
         }
