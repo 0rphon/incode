@@ -52,13 +52,13 @@ impl EncodeData {
         let dif = if tar > reg {tar-reg} else {(0xFFFFFFFF-reg)+tar};
         Self {
             style: EncodeStyle::Add,
-            values: Self::get_data(dif),
+            values: Self::get_values(dif),
         }
     }
     fn check_xor_add(tar: u32) -> Self {
         Self {
             style: EncodeStyle::XorAdd,
-            values: Self::get_data(tar),
+            values: Self::get_values(tar),
         }
     }
     fn check_sub(tar: u32, reg: u32) -> Self {
@@ -71,18 +71,18 @@ impl EncodeData {
         };
         Self {
             style: EncodeStyle::Sub,
-            values: Self::get_data(dif),
+            values: Self::get_values(dif),
         }
     }
     fn check_xor_sub(tar: u32) -> Self {
         let dif = 0_u32.overflowing_sub(tar).0;
         Self {
             style: EncodeStyle::XorSub,
-            values: Self::get_data(dif),
+            values: Self::get_values(dif),
         }
     }
 
-    fn get_data(dif: u32) -> Vec<u32> {
+    fn get_values(dif: u32) -> Vec<u32> {
         let (times, rem) = (dif/0x7F7F7F7F,dif%0x7F7F7F7F);
         let mut values = vec!(0x7F7F7F7F;times as usize);
         if rem!=0 {
@@ -130,9 +130,18 @@ impl EncodeData {
     }
 }
 
-//00000000 -> 90009000
+//eliminate InstructionType
+//return Vec<Instruction>
 
-//
+//generate vec<Instruction> for each possible instruction
+
+//vec<u32> of adjusted values
+//construct instruction for each value
+//instead of EncodeStyle, we have an enum for every instruction with its value and string
+
+//Instruction {bytes: vec<u8>, mnemonic: string}
+//.new(op: u8, value: Option<u32>) generates a new instruction
+//.
 
 
 //just creates an xor instruction
