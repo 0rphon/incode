@@ -115,11 +115,9 @@ fn parse_bytes(input: &str) -> DynResult<Vec<u8>> {
     let mut parsed = strip_hex(input);
     if parsed.len() == 0 {dynerr!(BadBytes(input.to_string()))}
     if parsed.len()%2 != 0 {parsed.insert(0,'0')}
-    let mut bytes = parsed.chars().chunks(2).into_iter()
+    let bytes = parsed.chars().chunks(2).into_iter()
         .map(|b| Ok(u8::from_str_radix(&b.collect::<String>(), 16)?))
         .collect::<DynResult<Vec<u8>>>()?;
-    let pad = bytes.len()%4;
-    if pad != 0 {bytes.extend(vec!(0x90;4-pad))}
     Ok(bytes)
 }
 

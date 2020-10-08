@@ -2,86 +2,171 @@ use super::translate::{get_u32, get_bytes_u32, format_bytes};
 
 use std::u8;
 use std::convert::TryInto;
-
-const PUSH_ONE: [u8;2]      = [0x6A, 0x01];
-const PUSH_ONE_INS: &str    = "push   0x1";
-const POP_EAX: [u8;1]       = [0x58];
-const POP_EAX_INS: &str     = "pop    eax";
-const DEC_EAX: [u8;1]       = [0x48];
-const DEX_EAX_INS: &str     = "dec    eax";
-
-const SUB: u8               = 0x2D;
-const SUB_INS: &str         = "sub";
-
-const ADD: u8               = 0x05;
-const ADD_INS: &str         = "add";
-
-const PUSH_EAX: [u8;1]      = [0x50];
-const PUSH_EAX_INS: &str    = "push   eax";
-
-const PUSH_VAL: u8          = 0x68;
-const PUSH_VAL_INS: &str    = "push";
+use std::fmt;
 
 
+/// handles translating values to instructions
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum EncodeStyle {
-    Sub,
-    Add,
-    XorSub,
-    XorAdd,
+enum OpCode {
+    Push8(u8),
+    Push32(u32),
+    PopEax,
+    DecEax,
+    SubEax(u32),
+    AddEax(u32),
+    PushEax(Option<u32>),
 }
+impl OpCode {
+    /// generates the bytes and mnemonic for an instruction
+    fn gen_instruction(&self) -> (Vec<u8>, String) {
+        use OpCode::*;
+        match self {
+            Push8(v)   => (vec!(0x6A,*v),         format!("push   0x{:02X}",v)), 
+            Push32(v)  => (Self::create(0x68,*v), format!("push   0x{:08X}",v)),
+            PopEax     => (vec!(0x58),            format!("pop    eax")),
+            DecEax     => (vec!(0x48),            format!("dec    eax")),
+            SubEax(v)  => (Self::create(0x2D,*v), format!("sub    eax, 0x{:08X}",v)),
+            AddEax(v)  => (Self::create(0x05,*v), format!("add    eax, 0x{:08X}",v)),
+            PushEax(r) => (vec!(0x50),            format!("push   eax{}", 
+                if let Some(v) = r {format!("              (pushed 0x{:08X})",v)} 
+                else {String::new()})
+            ),
+        }
+    }
+    
+    /// combines the bytes for an instruction
+    fn create(op: u8, val: u32) -> Vec<u8> {
+        let mut code = vec!(op);
+        code.extend(&get_bytes_u32(val));
+        code
+    }
+}
+
+/// handles the creation of instructions
 #[derive(Debug, Clone)]
-struct EncodeData {
-    style:  EncodeStyle,
-    values: Vec<u32>
+struct Instruction {
+    bytes: Vec<u8>,
+    mnemonic: String,
 }
-impl EncodeData {
-    ///checks which encoding style would be shortest
-    fn check_encode(bytes: [u8;4], reg: [u8;4]) -> Self {
-        let target = get_u32(bytes);
-        let reg = get_u32(reg);
+impl Instruction {
+    /// constructs an instruction for the given OpCode(val)
+    fn construct(op: OpCode) -> Self {
+        let (bytes, mnemonic) = op.gen_instruction();
+        Self {
+            bytes,
+            mnemonic,
+        }
+    }
+
+    /// creates the ascii equivalent of xor eax,eax
+    fn zero_eax() -> Vec<Self> {
+        vec!(
+            Self::construct(OpCode::Push8(1)),
+            Self::construct(OpCode::PopEax),
+            Self::construct(OpCode::DecEax),
+        )
+    }
+
+    /// pushes eax to the stack
+    /// has the option to take a register value to display in the mnemonic
+    fn push_eax(reg: Option<u32>) -> Self {
+        Self::construct(OpCode::PushEax(reg))
+    }
+
+    /// creates instruction to push the given value to the stack
+    /// DOES NOT DO WRAPPING!
+    fn push_u32(value: u32) -> Self {
+        Self::construct(OpCode::Push32(value))
+    }
+}
+/// allows instructions to be easily displayed
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,
+            "{:<24} //{}",
+            format_bytes(&self.bytes),
+            self.mnemonic
+        )
+    }
+}
+
+/// handles the wrapping of non-ascii instructions in ascii shellcode
+#[derive(Debug, Clone)]
+pub struct WrappedInstructions {
+    /// a list of generated, ascii safe shellcode
+    instructions: Vec<Instruction>,
+    /// the length of the generated shellcode
+    len: usize,
+}
+impl WrappedInstructions {
+    /// creates a new WrappedInstructions instance from a list of Instructions
+    fn new(instructions: Vec<Instruction>) -> Self {
+        Self {
+            len: instructions.iter().map(|i| i.bytes.len()).sum::<usize>(),
+            instructions,
+        }
+    }
+
+    /// adds one set of WrappedInstructions onto another
+    fn extend(&mut self, other: Self) {
+        self.instructions.extend(other.instructions);
+        self.len+=other.len;
+    }
+
+    /// combines two sets of WrappedInstructions
+    fn combine(mut self, other: Self) -> Self {
+        self.extend(other);
+        self
+    }
+
+    /// adds an Instruction to the end of a WrappedInstructions instance
+    fn push(&mut self, instruction: Instruction) {
+        self.len+=instruction.bytes.len();
+        self.instructions.push(instruction);
+    }
+
+    /// generates WrappedInstructions for the given dword
+    fn wrap(dword: [u8;4], eax: [u8;4]) -> Self {
+        let target = get_u32(dword);
+        let eax = get_u32(eax);
         let mut results = Vec::new();
-        results.push(Self::check_add(target, reg));
-        results.push(Self::check_sub(target, reg));
-        results.push(Self::check_xor_add(target));
-        results.push(Self::check_xor_sub(target));
-        results.sort_by(|a,b| a.values.len().cmp(&b.values.len()));
-        results.remove(0)
+        results.push(Self::check_add(target, eax));
+        results.push(Self::check_sub(target, eax));
+        results.push(Self::new(Instruction::zero_eax())
+            .combine(Self::check_add(target, 0)));
+        results.push(Self::new(Instruction::zero_eax())
+            .combine(Self::check_sub(target, 0)));
+        results.sort_by(|a,b| a.len.cmp(&b.len));
+        let best = results.remove(0);
+        if best.instructions.len() > 10 {panic!("Couldn't encode payload! Please contact the dev with a sample so this issue can be fixed!")}
+        best
     }
-    fn check_add(tar: u32, reg: u32) -> Self {
-        let dif = if tar > reg {tar-reg} else {(0xFFFFFFFF-reg)+tar};
-        Self {
-            style: EncodeStyle::Add,
-            values: Self::get_values(dif),
-        }
+
+    /// generates WrappedInstructions to add eax to the target value
+    fn check_add(tar: u32, eax: u32) -> Self {
+        let dif = if tar > eax {tar-eax} else {(0xFFFFFFFF-eax)+tar};
+        let instructions = Self::get_values(dif).into_iter().map(|val|
+            Instruction::construct(OpCode::AddEax(val))
+        ).collect::<Vec<Instruction>>();
+        Self::new(instructions)
     }
-    fn check_xor_add(tar: u32) -> Self {
-        Self {
-            style: EncodeStyle::XorAdd,
-            values: Self::get_values(tar),
-        }
-    }
-    fn check_sub(tar: u32, reg: u32) -> Self {
+
+    /// generates WrappedInstructions to sub eax to the target value
+    fn check_sub(tar: u32, eax: u32) -> Self {
         let dif = {
-            if tar < reg {reg-tar} 
+            if tar < eax {eax-tar} 
             else {
                 0_u32.overflowing_sub(tar).0
-                    .overflowing_add(reg).0
+                    .overflowing_add(eax).0
             }
         };
-        Self {
-            style: EncodeStyle::Sub,
-            values: Self::get_values(dif),
-        }
-    }
-    fn check_xor_sub(tar: u32) -> Self {
-        let dif = 0_u32.overflowing_sub(tar).0;
-        Self {
-            style: EncodeStyle::XorSub,
-            values: Self::get_values(dif),
-        }
+        let instructions = Self::get_values(dif).into_iter().map(|val|
+            Instruction::construct(OpCode::SubEax(val))
+        ).collect::<Vec<Instruction>>();
+        Self::new(instructions)
     }
 
+    /// generates ascii safe values that add up to dif
     fn get_values(dif: u32) -> Vec<u32> {
         let (times, rem) = (dif/0x7F7F7F7F,dif%0x7F7F7F7F);
         let mut values = vec!(0x7F7F7F7F;times as usize);
@@ -103,7 +188,7 @@ impl EncodeData {
         values
     }
 
-    ///gets rid of zeros and invalid vals. adds lines as needed
+    /// equalizes a set of values to be ascii safe. will add more values if needed
     fn equalize(values: Vec<u32>) -> Vec<u32> {
         let mut lines = values.iter().map(|v| get_bytes_u32(*v)).collect::<Vec<[u8;4]>>();
         loop {
@@ -117,6 +202,7 @@ impl EncodeData {
                     }
                     //steal from above to get rid of nulls
                     if lines[line][byte] == 0 {
+                        if line == 0 {return vec!(0;10)}
                         lines[line-1][byte]-=1;
                         lines[line][byte]+=1;
                     }
@@ -128,129 +214,41 @@ impl EncodeData {
         }
         lines.iter().map(|v| get_u32(*v)).collect()
     }
-}
 
-//eliminate InstructionType
-//return Vec<Instruction>
-
-//generate vec<Instruction> for each possible instruction
-
-//vec<u32> of adjusted values
-//construct instruction for each value
-//instead of EncodeStyle, we have an enum for every instruction with its value and string
-
-//Instruction {bytes: vec<u8>, mnemonic: string}
-//.new(op: u8, value: Option<u32>) generates a new instruction
-//.
-
-
-//just creates an xor instruction
-fn xor() -> Vec<Vec<u8>> {
-    vec!(
-        PUSH_ONE.to_vec(),
-        POP_EAX.to_vec(),
-        DEC_EAX.to_vec()
-    )
-}
-
-//creates the post instruction
-fn post() -> Vec<u8> {
-    PUSH_EAX.to_vec()
-}
-
-fn encode_action(op: u8, lines: Vec<u32>) -> Vec<Vec<u8>> {
-    let mut instructions = Vec::new();
-    for line in lines {
-        let mut bytes = get_bytes_u32(line).to_vec();
-        bytes.insert(0, op);
-        instructions.push(bytes);
-    }
-    instructions
-}
-
-
-///displays the corresponding opcodes for a byte array
-pub fn display_instructions(output: (Vec<Vec<u8>>, Vec<[u8;4]>)) {
-    let (instructions, words) = output;
-    let mut words = words.into_iter();
-    for ins in instructions {
-        println!("{:<24} //{}",
-            format_bytes(&ins),
-            match ins {
-                i if i == PUSH_ONE       => PUSH_ONE_INS.to_string(),
-                i if i == POP_EAX        => POP_EAX_INS.to_string(),
-                i if i == DEC_EAX        => DEX_EAX_INS.to_string(),
-                i if i == PUSH_EAX       => format!("{:<20}(pushed {:08X})",
-                    PUSH_EAX_INS,
-                    get_u32(words.next().unwrap())
-                ),
-                i if i[0] == PUSH_VAL    => format!("{:<6} 0x{:08X}",
-                    PUSH_VAL_INS,
-                    get_u32([i[1], i[2], i[3], i[4]])
-                ),
-                i if i[0] == SUB => format!("{:<6} 0x{:08X}",
-                    SUB_INS,
-                    get_u32([i[1], i[2], i[3], i[4]])
-                ),
-                i if i[0] == ADD => format!("{:<6} 0x{:08X}",
-                    ADD_INS,
-                    get_u32([i[1], i[2], i[3], i[4]])
-                ),
-                _ => panic!("Error while formatting. Contact the Dev.")                     //TEMP
-            }
-        );
+    /// prints WrappedInstructions to screen
+    pub fn display(&self) {
+        println!("Payload size: {} bytes", self.len);
+        for instruction in &self.instructions {
+            println!("{}", instruction)
+        }
     }
 }
 
-
-
-
-///gets dwords out of a byte array
-pub fn get_dwords(bytes: &Vec<u8>) -> Vec<[u8;4]> {
+/// gets dwords out of a byte array
+pub fn get_dwords(mut bytes: Vec<u8>) -> Vec<[u8;4]> {
+    let pad = bytes.len()%4;
+    if pad != 0 {bytes.extend(vec!(0x90;4-pad))}
     let mut words = bytes.chunks_exact(4).map(|b| b.try_into().unwrap())
         .collect::<Vec<[u8;4]>>();
     words.reverse();
     words
 }
 
-
-
-
-
-pub fn wrap(bytes: &Vec<u8>) -> (Vec<Vec<u8>>,  Vec<[u8;4]>) {
-    let words = get_dwords(bytes);
-    let mut output = vec!();
-    output.extend(xor());
-    let mut reg = [0x00_u8,0,0,0x00];
+/// generates ascii wrapped x86 shellcode for a byte array
+pub fn wrap(bytes: &Vec<u8>) -> WrappedInstructions {
+    let words = get_dwords(bytes.clone());
+    let mut output = WrappedInstructions::new(Instruction::zero_eax());
+    let mut reg = [0_u8,0,0,0];
     for word in &words {
-        if *word == reg {output.push(post())}
+        if *word == reg {output.push(Instruction::push_eax(Some(get_u32(reg))))}
         else if word.iter().any(|b| *b>0x7F||*b==0) {
-            use EncodeStyle::*;
-            let action = EncodeData::check_encode(*word, reg);
-            match action {
-                e if e.style == Add    => {
-                    output.extend(encode_action(ADD, e.values));
-                },
-                e if e.style == Sub    => {
-                    output.extend(encode_action(SUB, e.values));
-                },
-                e if e.style == XorAdd => {
-                    output.extend(xor());
-                    output.extend(encode_action(ADD, e.values));
-                },
-                e if e.style == XorSub => {
-                    output.extend(xor());
-                    output.extend(encode_action(SUB, e.values));
-                },
-                _ => panic!("Error while matching. Contact the dev")                    //TEMP
-            }
-            output.push(post());
+            let action = WrappedInstructions::wrap(*word, reg);
+            output.extend(action);
             reg = *word;
+            output.push(Instruction::push_eax(Some(get_u32(reg))));
         } else {
-            let mut ins = word.to_vec();
-            ins.insert(0, PUSH_VAL);
-            output.push(ins)
+            output.push(Instruction::push_u32(get_u32(*word)));
         }
     }
-    (output, words)
+    output
 }

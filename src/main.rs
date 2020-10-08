@@ -3,7 +3,7 @@
 mod wrap;
 mod translate;
 mod input;
-use wrap::{wrap, display_instructions};
+use wrap::{wrap};
 
 use std::fmt::{Display, Debug};
 use std::process::exit;
@@ -62,8 +62,7 @@ fn do_code(input: input::UserInput) {
     let bytes = input.code.unwrap();
     println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
     let output = wrap(&bytes);
-    println!("Payload size: {} bytes", output.0.iter().flatten().count());
-    display_instructions(output);
+    output.display()
 }
 fn do_position(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 fn do_position_code(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
