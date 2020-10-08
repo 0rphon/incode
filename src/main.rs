@@ -4,25 +4,34 @@ mod wrap;
 mod translate;
 mod input;
 use wrap::{wrap, display_instructions};
-use dynerr::*;
 
+use std::fmt::{Display, Debug};
 use std::process::exit;
 
 const WELCOME_MESSAGE: &str = "InCode: for encoding your code in code to run in other peoples code!\nCreated by 0rphon\n";
 
+pub trait FormattedUnwrap<T> {
+    /// if its debug mode it prints the full panic, if its release it prints the formatted error
+    fn unwrap_or_fmt(self) -> T;
+}
+/// implementing the method on every Result
+impl<T, E: Display+Debug> FormattedUnwrap<T> for Result<T, E> {
+    fn unwrap_or_fmt(self) -> T {
+        if cfg!(debug_assertions) {
+            self.unwrap()
+        } else {
+            self.unwrap_or_else(|e| {
+                println!("{}", e);
+                exit(0)
+            })
+        }
+    }
+}
 
 fn main() {
     println!("{}",WELCOME_MESSAGE);
 
-    let input = input::get_input().unwrap_or_else(|e| {
-        println!("{}",e);
-        dynmatch!(e,
-            type input::InputError {
-                arm input::InputError::HelpMessage => exit(0),
-                _   => exit(1)
-            },  _   => exit(2)
-        )
-    });
+    let input = input::get_input().unwrap_or_fmt();
     let (esp, eip, jump, code) = (
         input.esp.is_some(),
         input.eip.is_some(),
@@ -30,7 +39,8 @@ fn main() {
         input.code.is_some()
     );
 
-    if esp != eip {
+    if input.help {println!("{}",input::HELP_MESSAGE)}
+    else if esp != eip {
         println!("ArgsError: You must set both --esp and --eip. {}", 
             input::SEE_HELP);
     }

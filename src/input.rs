@@ -14,7 +14,7 @@ const EIP: &str  = "--eip";
 const JUMP: &str = "--jump";
 const HELP: &str = "--help";
 pub const SEE_HELP: &str = "Try --help for usage.";
-const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
+pub const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
 This is a tool I wrote for personal security research. I obviously accept no responsibility for how other
 people use it.
 
@@ -59,7 +59,6 @@ pub enum InputError {
     BadBytes(String),
     BadAddress(String),
     InvalidAddress(String),
-    HelpMessage,
 }
 //impl display formatting for error
 impl fmt::Display for InputError {
@@ -72,8 +71,6 @@ impl fmt::Display for InputError {
             Self::BadBytes(s)       => write!(f, "InputError::BadBytes: Parser found zero valid characters in given bytes \"{}\". {}",s,SEE_HELP),
             Self::BadAddress(s)     => write!(f, "InputError::BadAddress: Parser found zero valid characters in given address \"{}\". {}",s,SEE_HELP),
             Self::InvalidAddress(s) => write!(f, "InputError::InvalidAddress: Given address not within 32bit address range \"{}\". {}",s,SEE_HELP),
-            Self::HelpMessage       => write!(f, "{}", HELP_MESSAGE),
-
         }
     }
 }
@@ -89,9 +86,10 @@ impl error::Error for InputError {}
 #[derive(Debug)]
 pub struct UserInput {
     pub code: Option<Vec<u8>>,
-    pub esp: Option<u32>,
-    pub eip: Option<u32>,
+    pub esp:  Option<u32>,
+    pub eip:  Option<u32>,
     pub jump: Option<u32>,
+    pub help: bool,
 }
 
 impl UserInput {
@@ -101,6 +99,7 @@ impl UserInput {
             esp: None,
             eip: None,
             jump: None,
+            help: false,
         }
     }
 }
@@ -148,7 +147,7 @@ pub fn get_input() -> DynResult<UserInput> {
     //one arg then try parsing it for bytes to wrap
     else if args.len() == 1 {
         match args.next().unwrap() {
-            s if s==HELP => dynerr!(HelpMessage),
+            s if s==HELP => {input.help = true; return Ok(input)},
             s if s.starts_with("-") => dynerr!(BadArg(s)),
             byte_string  => match parse_bytes(&byte_string) {
                 Ok(bytes) => input.code = Some(bytes),
