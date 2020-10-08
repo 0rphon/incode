@@ -1,9 +1,8 @@
-#![feature(int_error_matching)]
+#![feature(int_error_matching, unsized_locals)]
 
-mod wrap;
-mod translate;
+mod generate;
 mod input;
-use wrap::{wrap};
+use generate::InstructionSet;
 
 use std::fmt::{Display, Debug};
 use std::process::exit;
@@ -61,10 +60,15 @@ fn main() {
 fn do_code(input: input::UserInput) {
     let bytes = input.code.unwrap();
     println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
-    let output = wrap(&bytes);
+    let output = generate::wrap(&bytes);
     output.display()
 }
-fn do_position(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_position(input: input::UserInput) {
+    let esp = input.esp.unwrap();
+    let eip = input.eip.unwrap();
+    println!("Generating positional code for 0x{:08X} -> 0x{:08X}", eip, esp);
+    let output = generate::position(esp, eip);
+}
 fn do_position_code(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 fn do_position_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
@@ -112,3 +116,9 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 //xor = 0x35
 //and = 0x25
 //or  = 0x0D
+
+
+
+//if you change the wrapper so that it adds/subs based on null bytes at the beginning of the val then it would save room
+//so if it just needs 7f7f more dont make a whole new instruction, just add ax
+//same with al for 7f
