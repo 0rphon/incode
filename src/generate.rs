@@ -1,24 +1,17 @@
 mod instructions;
 mod translate;
-use translate::{get_u32, get_dwords};
+use translate::{get_dwords, get_full_bytes32};
 use instructions::InstructionSet;
 
 
 /// generates ascii wrapped x86 shellcode for a byte array
 pub fn wrap(bytes: &Vec<u8>) -> InstructionSet {
-    let words = get_dwords(bytes.clone());
+    let words = get_dwords(bytes);
     let mut output = InstructionSet::new();
-    output.zero_eax();
-    let mut eax = [0_u8,0,0,0];
-    for word in &words {
-        if *word == eax {output.push_eax(Some(get_u32(eax)))}
-        else if word.iter().any(|b| *b>0x7F||*b==0) {
-            output.encode(*word, eax);
-            eax = *word;
-            output.push_eax(Some(get_u32(eax)));
-        } else {
-            output.push_u32(get_u32(*word));
-        }
+    output.one_eax();
+    let mut eax = get_full_bytes32(1);
+    for dword in words {
+        output.encode(&dword, &mut eax);
     }
     output
 }

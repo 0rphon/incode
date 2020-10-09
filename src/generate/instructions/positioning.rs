@@ -1,5 +1,5 @@
 use super::InstructionSet;
-use super::translate::get_bytes_u32;
+use super::translate::get_full_bytes32;
 
 #[derive(Debug)]
 enum Direction {
@@ -10,7 +10,7 @@ enum Direction {
 impl InstructionSet {
     pub fn generate_positional(&self, esp: u32, eip: u32) {
         let (dif, dir) = Self::get_difference(esp, eip);
-        let bytes = get_bytes_u32(dif);
+        let bytes = get_full_bytes32(dif);
         println!("{:02X?}",bytes);
         if bytes.iter().any(|b| *b>0x7F||*b==0) {
             println!("bad! {:?}", dir)

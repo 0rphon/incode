@@ -8,15 +8,29 @@ use super::translate;
 
 use std::fmt;
 
+//some adds
+//05 7f 7f 7f 7f          add    eax,0x7f7f7f7f
+//66 05 7f 7f             add    ax,0x7f7f
+//04 7f                   add    al,0x7f 
+//some subs
+//2d 7f 7f 7f 7f          sub    eax,0x7f7f7f7f
+//66 2d 7f 7f             sub    ax,0x7f7f
+//2c 7f                   sub    al,0x7f 
+
 /// handles translating values to instructions
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum OpCode {
     Push8(u8),
+    Push16(u16),
     Push32(u32),
     PopEax,
     DecEax,
-    SubEax(u32),
     AddEax(u32),
+    AddAx(u16),
+    AddAl(u8),
+    SubEax(u32),
+    SubAx(u16),
+    SubAl(u8),
     PushEax(Option<u32>),
     PushEsp,
     PopEsp,
@@ -26,25 +40,35 @@ impl OpCode {
     fn gen_instruction(&self) -> (Vec<u8>, String) {
         use OpCode::*;
         match self {
-            Push8(v)   => (vec!(0x6A,*v),         format!("push   0x{:02X}",v)), 
-            Push32(v)  => (Self::create(0x68,*v), format!("push   0x{:08X}",v)),
-            PopEax     => (vec!(0x58),            format!("pop    eax")),
-            DecEax     => (vec!(0x48),            format!("dec    eax")),
-            SubEax(v)  => (Self::create(0x2D,*v), format!("sub    eax, 0x{:08X}",v)),
-            AddEax(v)  => (Self::create(0x05,*v), format!("add    eax, 0x{:08X}",v)),
-            PushEax(r) => (vec!(0x50),            format!("push   eax{}", 
-                if let Some(v) = r {format!("              (pushed 0x{:08X})",v)} 
-                else {String::new()})
+            Push8(v)   => (vec!(0x6A,*v),                   format!("push   0x{:02X}",v)), 
+            Push16(v)  => (Self::create16(0x66, 68, *v),    format!("push   0x{:04X}",v)),
+            Push32(v)  => (Self::create32(0x68,*v),         format!("push   0x{:08X}",v)),
+            PopEax     => (vec!(0x58),                      format!("pop    eax")),
+            DecEax     => (vec!(0x48),                      format!("dec    eax")),
+            AddEax(v)  => (Self::create32(0x05,*v),         format!("add    eax, 0x{:08X}",v)),
+            AddAx(v)   => (Self::create16(0x66, 0x05, *v),  format!("add    ax,  0x{:04X}",v)),
+            AddAl(v)   => (vec!(0x04, *v),                  format!("add    al,  0x{:02X}",v)),
+            SubEax(v)  => (Self::create32(0x2D,*v),         format!("sub    eax, 0x{:08X}",v)),
+            SubAx(v)   => (Self::create16(0x66, 0x2D, *v),  format!("sub    ax,  0x{:04X}",v)),
+            SubAl(v)   => (vec!(0x00, *v),                  format!("sub    al,  0x{:02X}",v)),
+            PushEax(r) => (vec!(0x50),                      format!("push   eax{}", 
+                if let Some(v) = r { format!("              (pushed 0x{:08X})",v)} else {String::new()})
             ),
-            PushEsp    => (vec!(0x54),            format!("push   esp")),
-            PopEsp     => (vec!(0x5C),            format!("pop    esp")),
+            PushEsp    => (vec!(0x54),                      format!("push   esp")),
+            PopEsp     => (vec!(0x5C),                      format!("pop    esp")),
         }
     }
     
     /// combines the bytes for an instruction
-    fn create(op: u8, val: u32) -> Vec<u8> {
+    fn create32(op: u8, val: u32) -> Vec<u8> {
         let mut code = vec!(op);
-        code.extend(&translate::get_bytes_u32(val));
+        code.extend(&translate::get_full_bytes32(val));
+        code
+    }
+
+    fn create16(op: u8, op2: u8, val: u16) -> Vec<u8> {
+        let mut code = vec!(op, op2);
+        code.extend(&translate::get_full_bytes16(val));
         code
     }
 }
@@ -128,18 +152,19 @@ impl InstructionSet {
         }
     }
 
-    /// creates the ascii equivalent of xor eax,eax
-    pub fn zero_eax(&mut self) {
-        self.push_8(1);
+    /// creates the ascii equivalent of mov eax, 1
+    pub fn one_eax(&mut self) {
+        self.push8(1);
         self.pop_eax();
-        self.dec_eax();
     }
 
+    /// push esp pop eax
     pub fn esp_to_eax(&mut self) {
         self.push_esp();
         self.pop_eax();
     }
 
+    /// push eax pop esp
     pub fn eax_to_esp(&mut self) {
         self.push_eax(None);
         self.pop_esp();
@@ -156,18 +181,42 @@ impl InstructionSet {
         self.push(Instruction::construct(OpCode::AddEax(val)))
     }
 
+    /// creates instruction to add value to ax
+    pub fn add_ax(&mut self, val: u16) {
+        self.push(Instruction::construct(OpCode::AddAx(val)))
+    }
+
+    /// creates instruction to add value to al
+    pub fn add_al(&mut self, val: u8) {
+        self.push(Instruction::construct(OpCode::AddAl(val)))
+    }
+
     /// creates instruction to subtract value to eax
     pub fn sub_eax(&mut self, val: u32) {
         self.push(Instruction::construct(OpCode::SubEax(val)))
     }
 
+    /// creates instruction to add value to ax
+    pub fn sub_ax(&mut self, val: u16) {
+        self.push(Instruction::construct(OpCode::SubAx(val)))
+    }
+
+    /// creates instruction to add value to al
+    pub fn sub_al(&mut self, val: u8) {
+        self.push(Instruction::construct(OpCode::SubAl(val)))
+    }
+
     /// creates instruction to push the given value to the stack
     /// DOES NOT DO WRAPPING!
-    pub fn push_u32(&mut self, val: u32) {
+    pub fn push32(&mut self, val: u32) {
         self.push(Instruction::construct(OpCode::Push32(val)))
     }
 
-    pub fn push_8(&mut self, val: u8) {
+    pub fn push16(&mut self, val: u16) {
+        self.push(Instruction::construct(OpCode::Push16(val)))
+    }
+
+    pub fn push8(&mut self, val: u8) {
         self.push(Instruction::construct(OpCode::Push8(val)))
     }
 
