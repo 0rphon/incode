@@ -35,7 +35,7 @@ pub fn to_dword(bytes: &mut Vec<u8>) {
     if pad != 0 {bytes.extend(vec!(0x90;4-pad))}
 }
 
-/// gets the u32 number of a byte array
+/// gets the first dword of a byte array
 pub fn get32(bytes: &Vec<u8>) -> u32 {
     let mut bytes = bytes.clone();
     to_dword(&mut bytes);
@@ -45,11 +45,11 @@ pub fn get32(bytes: &Vec<u8>) -> u32 {
 }
 
 /// gets dwords out of a byte array
-pub fn get_dwords(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
+pub fn get_dwords(bytes: &Vec<u8>) -> Vec<u32> {
     let mut bytes = bytes.clone();
     to_dword(&mut bytes);
-    let mut words = bytes.chunks_exact(4).map(|b| b.to_vec())
-        .collect::<Vec<Vec<u8>>>();
+    let mut words = bytes.chunks_exact(4).map(|b| get32(&b.to_vec()))
+        .collect::<Vec<u32>>();
     words.reverse();
     words
 }

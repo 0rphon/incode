@@ -1,29 +1,56 @@
 mod instructions;
 mod translate;
-use translate::{get_dwords, get_full_bytes32};
+use translate::get_dwords;
 use instructions::InstructionSet;
+
+use std::io::{self, Write};
 
 
 /// generates ascii wrapped x86 shellcode for a byte array
 pub fn wrap(bytes: &Vec<u8>) -> InstructionSet {
+    println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
     let words = get_dwords(bytes);
     let mut output = InstructionSet::new();
     output.one_eax();
-    let mut eax = get_full_bytes32(1);
-    for dword in words {
-        output.encode(&dword, &mut eax);
+    let mut eax = 1;
+    for (i, dword) in words.iter().enumerate() {
+        print!("\rProg: {}/{}",i*4,bytes.len());
+        io::stdout().flush().unwrap();
+        output.encode(*dword, &mut eax);
     }
+    print!("\r");
     output
 }
 
 
 ///Generates positioning code
 pub fn position(esp: u32, eip: u32) -> InstructionSet {
+    println!("Generating positional code for 0x{:08X} -> 0x{:08X}", esp, eip);
     let mut output = InstructionSet::new();
-    output.esp_to_eax();
-    output.generate_positional(esp, eip);
-    output.eax_to_esp();
+    output.position(esp, eip, 0);
     output
+}
+
+
+pub fn position_wrap(bytes: &Vec<u8>, esp: u32, eip: u32) -> InstructionSet {
+    println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
+    let words = get_dwords(bytes);
+    let mut payload = InstructionSet::new();
+    payload.one_eax();
+    let mut eax = 1;
+    for (i, dword) in words.iter().enumerate() {
+        print!("\rProg: {}/{}",i*4,bytes.len());
+        io::stdout().flush().unwrap();
+        payload.encode(*dword, &mut eax);
+    }
+
+    let unpack_len = words.len()*4;
+    let mut positional = InstructionSet::new();
+    print!("\rGenerating positional code");
+    positional.position(esp, eip, payload.len()+unpack_len);
+    positional.extend(payload);
+    println!("Generated positional code for 0x{:08X} -> 0x{:08X}", esp, eip+(positional.len()+unpack_len) as u32);
+    positional
 }
 
 // "\x54",                 //push    esp

@@ -6,7 +6,7 @@ mod input;
 use std::fmt::{Display, Debug};
 use std::process::exit;
 
-const WELCOME_MESSAGE: &str = "InCode: for encoding your code in code to run in other peoples code!\nCreated by 0rphon\n";
+const WELCOME_MESSAGE: &str = "Inwrap: for encoding your wrap in wrap to run in other peoples wrap!\nCreated by 0rphon\n";
 
 pub trait FormattedUnwrap<T> {
     /// if its debug mode it prints the full panic, if its release it prints the formatted error
@@ -30,11 +30,11 @@ fn main() {
     println!("{}",WELCOME_MESSAGE);
 
     let input = input::get_input().unwrap_or_fmt();
-    let (esp, eip, jump, code) = (
+    let (esp, eip, jump, wrap) = (
         input.esp.is_some(),
         input.eip.is_some(),
         input.jump.is_some(),
-        input.code.is_some()
+        input.wrap.is_some()
     );
 
     if input.help {println!("{}",input::HELP_MESSAGE)}
@@ -46,32 +46,36 @@ fn main() {
         println!("ArgsError: You must set both --esp and --eip to use --jump. {}", 
             input::SEE_HELP);
     }
-    else if esp && eip && code && jump {do_position_code_jump(input)}
+    else if esp && eip && wrap && jump {do_position_wrap_jump(input)}
     else if esp && eip && jump {do_position_jump(input)}
-    else if esp && eip && code {do_position_code(input)}
+    else if esp && eip && wrap {do_position_wrap(input)}
     else if esp && eip {do_position(input)}
-    else if code {do_code(input)}
+    else if wrap {do_wrap(input)}
     else {println!("ArgsError: failed to match arguments. Please notify the dev. {}",
         input::SEE_HELP);
     }
 }
 
-fn do_code(input: input::UserInput) {
-    let bytes = input.code.unwrap();
-    println!("Encoding {} bytes: {:02X?}", bytes.len(), bytes);
+fn do_wrap(input: input::UserInput) {
+    let bytes = input.wrap.unwrap();
     let output = generate::wrap(&bytes);
-    output.display()
+    output.display();
 }
 fn do_position(input: input::UserInput) {
     let esp = input.esp.unwrap();
     let eip = input.eip.unwrap();
-    println!("Generating positional code for 0x{:08X} -> 0x{:08X}", esp, eip);
     let output = generate::position(esp, eip);
     output.display();
 }
-fn do_position_code(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_position_wrap(input: input::UserInput) {
+    let bytes = input.wrap.unwrap();
+    let esp = input.esp.unwrap();
+    let eip = input.eip.unwrap();
+    let output = generate::position_wrap(&bytes, esp, eip);
+    output.display();
+}
 fn do_position_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
-fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_position_wrap_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 
 
 
@@ -85,20 +89,20 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 //34 01                   xor    al,0x1
 
 
-//generate positional code
-//generate wrapped code
-//generate jump code WITHOUT xor_eax
+//generate positional wrap
+//generate wrapped wrap
+//generate jump wrap WITHOUT xor_eax
 
 //TEST COMMAND
 //[pos]+[add esp,0x300]+[jmp]
-//incode.exe --esp 19CF54 --eip 197758 --code "81 c4 00 03 00 00" --jump 19D588
-//then after that ill need some code to put esp in ecx
+//inwrap.exe --esp 19CF54 --eip 19D758 --wrap "81 c4 00 03 00 00" --jump 19D588
+//then after that ill need some wrap to put esp in ecx
 
 
 //TODO
 //idea: make a mini toolkit just for generating ascii safe versions of common commands without wrapping
 //also a jump calculator etc etc
-//make it so --code is optional if bytes were the first thing specified
+//make it so --wrap is optional if bytes were the first thing specified
 
 
 

@@ -1,8 +1,6 @@
 mod wrapping;
-mod positioning;
 
 pub use wrapping::*;
-pub use positioning::*;
 
 use super::translate;
 
@@ -32,6 +30,7 @@ enum OpCode {
     SubAx(u16),
     SubAl(u8),
     PushEax(Option<u32>),
+    PushAx(Option<u16>),
     PushEsp,
     PopEsp,
 }
@@ -53,6 +52,9 @@ impl OpCode {
             SubAl(v)   => (vec!(0x00, *v),                  format!("sub    al,  0x{:02X}",v)),
             PushEax(r) => (vec!(0x50),                      format!("push   eax{}", 
                 if let Some(v) = r { format!("              (pushed 0x{:08X})",v)} else {String::new()})
+            ),
+            PushAx(r)   => (vec!(0x66,0x50),                format!("push   ax{}", 
+                if let Some(v) = r { format!("              (pushed 0x{:04X})",v)} else {String::new()})
             ),
             PushEsp    => (vec!(0x54),                      format!("push   esp")),
             PopEsp     => (vec!(0x5C),                      format!("pop    esp")),
@@ -144,6 +146,10 @@ impl InstructionSet {
         self.instructions.push(instruction);
     }
 
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
     /// prints InstructionSet to screen
     pub fn display(&self) {
         println!("Payload size: {} bytes", self.len);
@@ -153,27 +159,26 @@ impl InstructionSet {
     }
 
     /// creates the ascii equivalent of mov eax, 1
+    pub fn zero_eax(&mut self) {
+        self.push8(1);
+        self.pop_eax();
+        self.dec_eax();
+    }
+
+    /// creates the ascii equivalent of mov eax, 1
     pub fn one_eax(&mut self) {
         self.push8(1);
         self.pop_eax();
-    }
-
-    /// push esp pop eax
-    pub fn esp_to_eax(&mut self) {
-        self.push_esp();
-        self.pop_eax();
-    }
-
-    /// push eax pop esp
-    pub fn eax_to_esp(&mut self) {
-        self.push_eax(None);
-        self.pop_esp();
     }
 
     /// creates instruction to push eax to the stack
     /// has the option to take the current eax value to display in the mnemonic
     pub fn push_eax(&mut self, eax: Option<u32>) {
         self.push(Instruction::construct(OpCode::PushEax(eax)))
+    }
+
+    pub fn push_ax(&mut self, eax: Option<u16>) {
+        self.push(Instruction::construct(OpCode::PushAx(eax)))
     }
 
     /// creates instruction to add value to eax

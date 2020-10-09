@@ -8,7 +8,7 @@ use regex::Regex;
 use std::num;
 
 
-const CODE: &str = "--code";
+const WRAP: &str = "--wrap";
 const ESP: &str  = "--esp";
 const EIP: &str  = "--eip";
 const JUMP: &str = "--jump";
@@ -19,7 +19,7 @@ This is a tool I wrote for personal security research. I obviously accept no res
 people use it.
 
 Usage:
-    --code [bytes]:     Wrap an instruction in x86 ascii shellcode that gets decoded to [esp] at runtime.
+    --wrap [bytes]:     Wrap an instruction in x86 ascii shellcode that gets decoded to [esp] at runtime.
 
     --esp [addr] --eip [addr]:
                         What the addresses of ESP and EIP will be at the first byte of this payload. While 
@@ -40,13 +40,13 @@ Examples:
         incode.exe --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]:                                        
-        incode.exe --code F3E9B800334A41 --esp 45D308 --eip 457B00
+        incode.exe --wrap F3E9B800334A41 --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped far jump]:                                       
         incode.exe --jump 463303 --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]+[wrapped far jump]:                       
-        incode.exe --code \"0xF3 0xE9 0xB8 0x00 0x33 0x4A 0x41\" --jump 463303 --esp 45D308 --eip 457B00";
+        incode.exe --wrap \"0xF3 0xE9 0xB8 0x00 0x33 0x4A 0x41\" --jump 463303 --esp 45D308 --eip 457B00";
 
 use InputError::*;
 ///a custom error type
@@ -85,7 +85,7 @@ impl error::Error for InputError {}
 ///stores user input
 #[derive(Debug)]
 pub struct UserInput {
-    pub code: Option<Vec<u8>>,
+    pub wrap: Option<Vec<u8>>,
     pub esp:  Option<u32>,
     pub eip:  Option<u32>,
     pub jump: Option<u32>,
@@ -95,7 +95,7 @@ pub struct UserInput {
 impl UserInput {
     fn new_empty() -> Self {
         UserInput {
-            code: None,
+            wrap: None,
             esp: None,
             eip: None,
             jump: None,
@@ -148,7 +148,7 @@ pub fn get_input() -> DynResult<UserInput> {
             s if s==HELP => {input.help = true; return Ok(input)},
             s if s.starts_with("-") => dynerr!(BadArg(s)),
             byte_string  => match parse_bytes(&byte_string) {
-                Ok(bytes) => input.code = Some(bytes),
+                Ok(bytes) => input.wrap = Some(bytes),
                 Err(e)    => dynmatch!(e,
                     type InputError {
                         arm BadBytes(_) => return Err(e),
@@ -162,10 +162,10 @@ pub fn get_input() -> DynResult<UserInput> {
     //else do a full arg match
     while let Some(arg) = args.next() {
         match &arg {
-            s if s == CODE => {
+            s if s == WRAP => {
                 match args.next() {
-                    Some(b) => input.code = Some(parse_bytes(&b)?),
-                    None    => dynerr!(MissingArg(CODE.to_string()))
+                    Some(b) => input.wrap = Some(parse_bytes(&b)?),
+                    None    => dynerr!(MissingArg(WRAP.to_string()))
                 }
             },
             s if s == ESP  => {
