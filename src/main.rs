@@ -2,7 +2,6 @@
 
 mod generate;
 mod input;
-use generate::InstructionSet;
 
 use std::fmt::{Display, Debug};
 use std::process::exit;
@@ -66,8 +65,9 @@ fn do_code(input: input::UserInput) {
 fn do_position(input: input::UserInput) {
     let esp = input.esp.unwrap();
     let eip = input.eip.unwrap();
-    println!("Generating positional code for 0x{:08X} -> 0x{:08X}", eip, esp);
+    println!("Generating positional code for 0x{:08X} -> 0x{:08X}", esp, eip);
     let output = generate::position(esp, eip);
+    output.display();
 }
 fn do_position_code(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 fn do_position_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
@@ -85,17 +85,9 @@ fn do_position_code_jump(input: input::UserInput) {println!("Not Implemented yet
 //34 01                   xor    al,0x1
 
 
-//positionING
-//specify esp location
-//specify your location
-//generate esp code
-//generate unpack
-//regenerate esp code
-//make sure new esp code == last esp code
-
-//esp and code should be able to go all the way up to FFFF FFFF
-
-//if jump mode specified and jump address given, then at the end position the jmp for new bytes, store the byte len, redo calcs, then check if equal
+//generate positional code
+//generate wrapped code
+//generate jump code WITHOUT xor_eax
 
 //TEST COMMAND
 //[pos]+[add esp,0x300]+[jmp]

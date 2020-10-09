@@ -10,4 +10,3 @@ edition = "2018"
 regex = "1.3.9"
 itertools = "0.9.0"
 dynerr="*"
-incode_derive = {path="incode_derive"}

@@ -1,19 +1,11 @@
-use incode_derive::Instructions;
-use super::instructions::{Instruction, InstructionSet};
+use super::InstructionSet;
 use super::translate::{get_bytes_u32, get_u32};
 
 use std::u8;
-/// handles the wrapping of non-ascii instructions in ascii shellcode
-#[derive(Instructions, Debug, Clone)]
-pub struct WrappedInstructions {
-    /// a list of generated, ascii safe shellcode
-    instructions: Vec<Instruction>,
-    /// the length of the generated shellcode
-    len: usize,
-}
-impl WrappedInstructions {
+
+impl InstructionSet {
     /// generates WrappedInstructions for the given dword
-    pub fn encode(dword: [u8;4], eax: [u8;4]) -> Self {
+    pub fn encode(&mut self, dword: [u8;4], eax: [u8;4]) {
         let target = get_u32(dword);
         let eax = get_u32(eax);
         let mut results = Vec::new();
@@ -26,12 +18,12 @@ impl WrappedInstructions {
         if best.instructions.len() > 10 {
             panic!("Couldn't encode payload! Please contact the dev with a sample so this issue can be fixed!")
         }
-        best
+        self.extend(best);
     }
 
     ///creates a new WrappedInstruction instance with an xor eax, eax inside it
     fn new_zeroed() -> Self {
-        let mut new = *Self::new();
+        let mut new = Self::new();
         new.zero_eax();
         new
     }
@@ -39,7 +31,7 @@ impl WrappedInstructions {
     /// generates WrappedInstructions to add eax to the target value
     fn check_add(tar: u32, eax: u32) -> Self {
         let dif = if tar > eax {tar-eax} else {(0xFFFFFFFF-eax)+tar};
-        let mut instructions = *Self::new();
+        let mut instructions = Self::new();
         for val in Self::gen_values(dif){instructions.add_eax(val)}
         instructions
     }
@@ -53,7 +45,7 @@ impl WrappedInstructions {
                     .overflowing_add(eax).0
             }
         };
-        let mut instructions = *Self::new();
+        let mut instructions = Self::new();
         for val in Self::gen_values(dif){instructions.sub_eax(val)}
         instructions
     }

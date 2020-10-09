@@ -1,23 +1,19 @@
-mod translate;
 mod instructions;
-mod wrapping;
-mod positioning;
+mod translate;
 use translate::{get_u32, get_dwords};
-pub use instructions::InstructionSet;
-use wrapping::WrappedInstructions;
+use instructions::InstructionSet;
 
 
 /// generates ascii wrapped x86 shellcode for a byte array
-pub fn wrap(bytes: &Vec<u8>) -> WrappedInstructions {
+pub fn wrap(bytes: &Vec<u8>) -> InstructionSet {
     let words = get_dwords(bytes.clone());
-    let mut output = *WrappedInstructions::new();
+    let mut output = InstructionSet::new();
     output.zero_eax();
     let mut eax = [0_u8,0,0,0];
     for word in &words {
         if *word == eax {output.push_eax(Some(get_u32(eax)))}
         else if word.iter().any(|b| *b>0x7F||*b==0) {
-            let action = WrappedInstructions::encode(*word, eax);
-            output.extend(action);
+            output.encode(*word, eax);
             eax = *word;
             output.push_eax(Some(get_u32(eax)));
         } else {
@@ -29,14 +25,12 @@ pub fn wrap(bytes: &Vec<u8>) -> WrappedInstructions {
 
 
 ///Generates positioning code
-pub fn position(esp: u32, eip: u32) {
-    let mut output = positioning::PositioningInstructions::new();
+pub fn position(esp: u32, eip: u32) -> InstructionSet {
+    let mut output = InstructionSet::new();
     output.esp_to_eax();
-    let dif = {
-        if esp > eip {esp-eip}
-        else {eip-esp}
-    };
+    output.generate_positional(esp, eip);
     output.eax_to_esp();
+    output
 }
 
 // "\x54",                 //push    esp

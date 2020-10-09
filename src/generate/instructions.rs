@@ -1,4 +1,10 @@
-use super::translate::{get_bytes_u32, format_bytes};
+mod wrapping;
+mod positioning;
+
+pub use wrapping::*;
+pub use positioning::*;
+
+use super::translate;
 
 use std::fmt;
 
@@ -38,7 +44,7 @@ impl OpCode {
     /// combines the bytes for an instruction
     fn create(op: u8, val: u32) -> Vec<u8> {
         let mut code = vec!(op);
-        code.extend(&get_bytes_u32(val));
+        code.extend(&translate::get_bytes_u32(val));
         code
     }
 }
@@ -69,7 +75,7 @@ impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,
             "{:<24} //{}",
-            format_bytes(&self.bytes),
+            translate::format_bytes(&self.bytes),
             self.mnemonic
         )
     }
@@ -77,97 +83,107 @@ impl fmt::Display for Instruction {
 
 
 
+#[derive(Debug, Clone)]
+pub struct InstructionSet {
+    /// a list of generated, ascii safe shellcode
+    instructions: Vec<Instruction>,
+    /// the length of the generated shellcode
+    len: usize,
+}
+
+
 /// enables the ability to build an instruction set
-pub trait InstructionSet {
-    fn new() -> Box<Self>;
-    fn len(&self) -> usize;
-    fn len_mut(&mut self) -> &mut usize;
-    fn instructions(self) -> Vec<Instruction>;
-    fn instructions_ref(&self) -> &Vec<Instruction>;
-    fn instructions_mut(&mut self) -> &mut Vec<Instruction>;
+impl InstructionSet {
+    ///creates a new empty InstructionSet
+    pub fn new() -> Self {
+        Self {
+            len: 0,
+            instructions: Vec::new()
+        }
+    }
 
     /// adds one set of InstructionSet onto another
-    fn extend(&mut self, other: Self) {
-        *self.len_mut()+=other.len();
-        self.instructions_mut().extend(other.instructions());
+    pub fn extend(&mut self, other: Self) {
+        self.len+=other.len;
+        self.instructions.extend(other.instructions);
     }
 
     /// combines two sets of InstructionSet
-    fn combine(mut self, other: Self) -> Self where Self: std::marker::Sized {
+    pub fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
     }
 
     /// adds an Instruction to the end of a InstructionSet instance
-    fn push(&mut self, instruction: Instruction) {
-        *self.len_mut()+=instruction.len();
-        self.instructions_mut().push(instruction);
+    pub fn push(&mut self, instruction: Instruction) {
+        self.len+=instruction.len();
+        self.instructions.push(instruction);
     }
 
     /// prints InstructionSet to screen
-    fn display(&self) {
-        println!("Payload size: {} bytes", self.len());
-        for instruction in self.instructions_ref() {
+    pub fn display(&self) {
+        println!("Payload size: {} bytes", self.len);
+        for instruction in &self.instructions {
             println!("{}", instruction)
         }
     }
 
     /// creates the ascii equivalent of xor eax,eax
-    fn zero_eax(&mut self) {
+    pub fn zero_eax(&mut self) {
         self.push_8(1);
         self.pop_eax();
         self.dec_eax();
     }
 
-    fn esp_to_eax(&mut self) {
+    pub fn esp_to_eax(&mut self) {
         self.push_esp();
         self.pop_eax();
     }
 
-    fn eax_to_esp(&mut self) {
+    pub fn eax_to_esp(&mut self) {
         self.push_eax(None);
         self.pop_esp();
     }
 
     /// creates instruction to push eax to the stack
     /// has the option to take the current eax value to display in the mnemonic
-    fn push_eax(&mut self, eax: Option<u32>) {
+    pub fn push_eax(&mut self, eax: Option<u32>) {
         self.push(Instruction::construct(OpCode::PushEax(eax)))
     }
 
     /// creates instruction to add value to eax
-    fn add_eax(&mut self, val: u32) {
+    pub fn add_eax(&mut self, val: u32) {
         self.push(Instruction::construct(OpCode::AddEax(val)))
     }
 
     /// creates instruction to subtract value to eax
-    fn sub_eax(&mut self, val: u32) {
+    pub fn sub_eax(&mut self, val: u32) {
         self.push(Instruction::construct(OpCode::SubEax(val)))
     }
 
     /// creates instruction to push the given value to the stack
     /// DOES NOT DO WRAPPING!
-    fn push_u32(&mut self, val: u32) {
+    pub fn push_u32(&mut self, val: u32) {
         self.push(Instruction::construct(OpCode::Push32(val)))
     }
 
-    fn push_8(&mut self, val: u8) {
+    pub fn push_8(&mut self, val: u8) {
         self.push(Instruction::construct(OpCode::Push8(val)))
     }
 
-    fn push_esp(&mut self) {
+    pub fn push_esp(&mut self) {
         self.push(Instruction::construct(OpCode::PushEsp))
     }
 
-    fn pop_esp(&mut self) {
+    pub fn pop_esp(&mut self) {
         self.push(Instruction::construct(OpCode::PopEsp))
     }
 
-    fn pop_eax(&mut self) {
+    pub fn pop_eax(&mut self) {
         self.push(Instruction::construct(OpCode::PopEax))
     }
 
-    fn dec_eax(&mut self) {
+    pub fn dec_eax(&mut self) {
         self.push(Instruction::construct(OpCode::DecEax))
     }
 }
