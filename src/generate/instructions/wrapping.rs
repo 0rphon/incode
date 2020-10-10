@@ -1,19 +1,17 @@
-use super::InstructionSet;
+use super::{InstructionSet, CONTACT_ME};
 use super::translate::{get_full_bytes32, get_bytes32};
 
 use std::u8;
 
-const CONTACT_ME: &str = "Please contact the dev with a sample so this issue can be fixed!";
-
 impl InstructionSet {
 
     /// generates code to position esp at the end of the payload
-    pub fn position(&mut self, esp: u32, eip: u32, payload_size: usize) {
+    pub fn position(&mut self, esp: u32, eip: u32, payload_size: usize, brute: bool) {
         self.push_esp();
         self.pop_eax();
         let mut last_size = 0;
         loop {
-            let position = InstructionSet::wrap(eip+last_size as u32+4+payload_size as u32, esp);
+            let position = InstructionSet::wrap(eip+last_size as u32+4+payload_size as u32, esp, brute);
             if position.len == last_size {self.extend(position);break}
             else {last_size = position.len}
         }
@@ -22,29 +20,31 @@ impl InstructionSet {
     }
 
     /// generates InstructionSets for the given dword
-    pub fn encode(&mut self, dword: u32, eax: &mut u32) {
-        let dword_bytes = get_bytes32(dword);
+    pub fn encode(&mut self, dword: u32, eax: &mut u32, brute: bool) {
+        let dword_bytes = get_full_bytes32(dword);
         if dword == *eax {self.push_eax(Some(dword))}
         else if dword_bytes.iter().any(|b| *b>0x7f||*b==0) {
-            self.extend(Self::wrap(dword, *eax));
+            self.extend(Self::wrap(dword, *eax, brute));
             self.push_eax(Some(dword));
             *eax = dword.clone();
         }else {self.push32(dword)}
     }
 
-    fn wrap(dest: u32, src: u32) -> Self {
+    fn wrap(dest: u32, src: u32, brute: bool) -> Self {
         let mut results = Vec::new();
         results.push(Self::check_add(dest, src));
         results.push(Self::check_sub(dest, src));
         results.push(Self::new_oned().combine(Self::check_add(dest, 1)));
         results.push(Self::new_oned().combine(Self::check_sub(dest, 1)));
-        for i in (0x1..0x7f7f7f7f).step_by(0x00001111) {                                //NEEDS TESTING TO SEE EXACTLY HOW BRUTE-FORCE-Y THIS NEEDS TO BE
-            let b = get_bytes32(i);
-            if b.len() != 3 && !b.into_iter().any(|b| b>0x7f||b==0) {
-                results.push(Self::new_pre_sub(i)
+        if brute {
+            for i in (0x1..0x7f7f7f7f).step_by(0x00001111) {                                //NEEDS TESTING TO SEE EXACTLY HOW BRUTE-FORCE-Y THIS NEEDS TO BE
+                let b = get_bytes32(i);
+                if b.len() != 3 && !b.into_iter().any(|b| b>0x7f||b==0) {
+                    results.push(Self::new_pre_sub(i)
                     .combine(Self::check_add(dest, src.overflowing_sub(i).0)));
-                results.push(Self::new_pre_add(i)
+                    results.push(Self::new_pre_add(i)
                     .combine(Self::check_sub(dest, src.overflowing_add(i).0)));
+                }
             }
         }
         results.sort_by(|a,b| a.len.cmp(&b.len));

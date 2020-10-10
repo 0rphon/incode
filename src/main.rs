@@ -58,23 +58,29 @@ fn main() {
 
 fn do_wrap(input: input::UserInput) {
     let bytes = input.wrap.unwrap();
-    let output = generate::wrap(&bytes);
+    let output = generate::do_wrap(&bytes, input.brute);
     output.display();
 }
 fn do_position(input: input::UserInput) {
     let esp = input.esp.unwrap();
     let eip = input.eip.unwrap();
-    let output = generate::position(esp, eip);
+    let output = generate::do_position(esp, eip, input.brute);
     output.display();
 }
 fn do_position_wrap(input: input::UserInput) {
     let bytes = input.wrap.unwrap();
     let esp = input.esp.unwrap();
     let eip = input.eip.unwrap();
-    let output = generate::position_wrap(&bytes, esp, eip);
+    let output = generate::do_position_wrap(&bytes, esp, eip, input.brute);
     output.display();
 }
-fn do_position_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
+fn do_position_jump(input: input::UserInput) {
+    let esp = input.esp.unwrap();
+    let eip = input.eip.unwrap();
+    let jmp = input.jump.unwrap();
+    let output = generate::do_position_jump(esp, eip, jmp, input.brute);
+    output.display();
+}
 fn do_position_wrap_jump(input: input::UserInput) {println!("Not Implemented yet. Sorry! {:02X?}", input)}
 
 

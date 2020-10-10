@@ -12,6 +12,7 @@ const WRAP: &str = "--wrap";
 const ESP: &str  = "--esp";
 const EIP: &str  = "--eip";
 const JUMP: &str = "--jump";
+const SIZE: &str = "--size";
 const HELP: &str = "--help";
 pub const SEE_HELP: &str = "Try --help for usage.";
 pub const HELP_MESSAGE: &str = "InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
@@ -29,6 +30,9 @@ Usage:
     --jump [addr]:      Generate a wrapped far jump from [eip] to [addr] that gets decoded to [esp] at 
                         runtime. Requires --esp and --eip to be set. It will handle esp positioning for 
                         you.
+    
+    --size              Use bruteforce to optimize size. Significantly slower but can sometimes save
+                        room.
 
     --help:             Show this screen and exit.
 
@@ -89,6 +93,7 @@ pub struct UserInput {
     pub esp:  Option<u32>,
     pub eip:  Option<u32>,
     pub jump: Option<u32>,
+    pub brute: bool,
     pub help: bool,
 }
 
@@ -99,6 +104,7 @@ impl UserInput {
             esp: None,
             eip: None,
             jump: None,
+            brute: false,
             help: false,
         }
     }
@@ -186,6 +192,8 @@ pub fn get_input() -> DynResult<UserInput> {
                     None    => dynerr!(MissingArg(JUMP.to_string()))
                 }
             },
+            s if s == SIZE => input.brute = true,
+            s if s == HELP => input.help = true,
             s              => dynerr!(BadArg(s.to_string()))
         }
     }

@@ -5,6 +5,8 @@ pub use wrapping::*;
 use super::translate;
 
 use std::fmt;
+pub const CONTACT_ME: &str = "Please contact the dev with a sample so this issue can be fixed!";
+pub const JUMP: u8 = 0xE9;
 
 //some adds
 //05 7f 7f 7f 7f          add    eax,0x7f7f7f7f
@@ -173,6 +175,14 @@ impl InstructionSet {
     pub fn one_eax(&mut self) {
         self.push8(1);
         self.pop_eax();
+    }
+
+    /// creates the unwrapped byte sequence for a far jump
+    pub fn create_far_jump(jmp: u32, eip:u32) -> Vec<u8> {
+        let offset = jmp.overflowing_sub(eip).0;
+        let mut code = translate::get_full_bytes32(offset);
+        code.insert(0, JUMP);
+        code
     }
 
     /// creates instruction to push eax to the stack
