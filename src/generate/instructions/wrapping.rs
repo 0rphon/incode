@@ -13,12 +13,9 @@ impl InstructionSet {
         self.pop_eax();
         let mut last_size = 0;
         loop {
-            println!("sp{:08X} ip{:08X}", esp, eip);
-            println!("{:08X}+{:08X}+{:08X}+{:08X}",eip, last_size, 4, payload_size);
-            println!("{:08X}",eip+last_size as u32+4+payload_size as u32);
             let position = InstructionSet::wrap(eip+last_size as u32+4+payload_size as u32, esp);
             if position.len == last_size {self.extend(position);break}
-            else {last_size = position.len} 
+            else {last_size = position.len}
         }
         self.push_eax(None);
         self.pop_esp();
@@ -41,7 +38,7 @@ impl InstructionSet {
         results.push(Self::check_sub(dest, src));
         results.push(Self::new_oned().combine(Self::check_add(dest, 1)));
         results.push(Self::new_oned().combine(Self::check_sub(dest, 1)));
-        for i in (0x1..0x7f7f7f7f).step_by(0x00001111) {
+        for i in (0x1..0x7f7f7f7f).step_by(0x00001111) {                                //NEEDS TESTING TO SEE EXACTLY HOW BRUTE-FORCE-Y THIS NEEDS TO BE
             let b = get_bytes32(i);
             if b.len() != 3 && !b.into_iter().any(|b| b>0x7f||b==0) {
                 results.push(Self::new_pre_sub(i)
@@ -86,13 +83,15 @@ impl InstructionSet {
     /// generates InstructionSets to add eax to the target value
     fn check_add(dest: u32, src: u32) -> Self {
         let dif = {
-            if dest > src {dest-src} 
+            if dest > src {
+                dest-src
+            }
             else {
                 let mut dif: u32 = 0;
-                for (i, (t, r)) in get_full_bytes32(dest)
+                for (i, (d, s)) in get_full_bytes32(dest)
                     .into_iter().zip(get_full_bytes32(src)).enumerate() {
-                    if r != 0 {dif += (0xFF_u8.overflowing_sub(r).0 as u32)<<i*8}
-                    dif += (t as u32)<<i*8;
+                    if s != 0 {dif += (0xFF_u8.overflowing_sub(s).0 as u32)<<i*8}
+                    dif += (d as u32)<<i*8;
                 }
                 dif+1
             }
@@ -113,13 +112,15 @@ impl InstructionSet {
     /// generates InstructionSets to sub eax to the target value
     fn check_sub(dest: u32, src: u32) -> Self {
         let dif = {
-            if dest < src {src-dest} 
+            if dest < src {
+                src-dest
+            }
             else {
                 let mut dif: u32 = 0;
-                for (i, (t, r)) in get_full_bytes32(dest)
+                for (i, (d, s)) in get_full_bytes32(dest)
                     .into_iter().zip(get_full_bytes32(src)).enumerate() {
-                    if t != 0 {dif += (0xFF_u8.overflowing_sub(t).0 as u32)<<i*8}
-                    dif += (r as u32)<<i*8;
+                    if d != 0 {dif += (0xFF_u8.overflowing_sub(d).0 as u32)<<i*8}
+                    dif += (s as u32)<<i*8;
                 }
                 dif+1
             }
@@ -140,9 +141,9 @@ impl InstructionSet {
     /// generates ascii safe values that add up to dif
     fn gen_values(dif: u32) -> Vec<u32> {
         let mut values = vec!(dif);
-        while values.iter().any(|v| 
-            get_bytes32(*v).iter().any(|b| 
-                *b>0x7f||*b==0)) 
+        while values.iter().any(|v|
+            get_bytes32(*v).iter().any(|b|
+                *b>0x7f||*b==0))
         && values.len() < 10 {
             Self::equalize(&mut values);
         }
@@ -152,6 +153,7 @@ impl InstructionSet {
     /// recursively propagates the value at lines[index] until every line is ascii safe
     fn equalize(values: &mut Vec<u32>) {
         //remove ascii-safe zeros
+        let start = values.iter().sum::<u32>();
         for val in 0..values.len() {
             let stripped = get_bytes32(values[val]);
             for (i, byte) in stripped.iter().enumerate() {
@@ -159,7 +161,8 @@ impl InstructionSet {
                 if *byte > 0x7F {
                     if let None = values.get(val+1) {values.push(0)}
                     values[val+1] += (*byte as u32-0x7F)<<(i*8);
-                    values[val] -= 0x7F<<(i*8);
+                    values[val] -= (*byte as u32)<<(i*8);
+                    values[val] += 0x7F<<(i*8);
                 }
                 //steal from above to get rid of nulls. if first line then returns bad instruction
                 if *byte == 0 {
@@ -168,31 +171,13 @@ impl InstructionSet {
                     values[val]+=0x01<<(i*8);
                 }
             }
+            let end = values.iter().sum::<u32>();
+            if start != end {
+                panic!("MISMATCH {:08X} {:08X}",start, end);
+            }
         }
     }
 }
-
-
-
-// Payload size: 17 bytes  jmp -492  e9 10 fe ff ff
-// "\x6A\x01",              //push   0x01
-// "\x58",                  //pop    eax
-// "\x2D\x02\x6F\x6F\x6F",  //sub    eax, 0x6F6F6F02
-// "\x50",                  //push   eax              (pushed 0x909090FF)
-// "\x05\x7F\x7F\x6D\x6F",  //add    eax, 0x6F6D7F7F
-// "\x04\x6B",              //add    al,  0x6B
-// "\x50",                  //push   eax              (pushed 0xFFFE10E9)
-
-
-//get rid of nop padding unless chunk len is 3
-//only look at target.len() of eax for push
-//equalize should take any size value
-//match the final push to the instruction len
-
-
-
-//holy shit the way ive set this up, adding u64's would be so easy
-//get rid of all size dependencies and make everything go up to u64
 
 
 // Encoding 5 bytes: [E9, 10, FE, FF, FF]

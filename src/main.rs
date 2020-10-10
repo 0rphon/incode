@@ -6,7 +6,7 @@ mod input;
 use std::fmt::{Display, Debug};
 use std::process::exit;
 
-const WELCOME_MESSAGE: &str = "Inwrap: for encoding your wrap in wrap to run in other peoples wrap!\nCreated by 0rphon\n";
+const WELCOME_MESSAGE: &str = "Incode: for encoding your code in code to run in other peoples code!\nCreated by 0rphon\n";
 
 pub trait FormattedUnwrap<T> {
     /// if its debug mode it prints the full panic, if its release it prints the formatted error
@@ -95,8 +95,8 @@ fn do_position_wrap_jump(input: input::UserInput) {println!("Not Implemented yet
 
 //TEST COMMAND
 //[pos]+[add esp,0x300]+[jmp]
-//inwrap.exe --esp 19CF54 --eip 19D758 --wrap "81 c4 00 03 00 00" --jump 19D588
-//then after that ill need some wrap to put esp in ecx
+//incode.exe --esp 19CF54 --eip 19D758 --wrap "81 c4 00 03 00 00" --jump 19D588
+//then after that ill need some code to put esp in ecx
 
 
 //TODO

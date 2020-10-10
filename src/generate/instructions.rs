@@ -19,9 +19,11 @@ use std::fmt;
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum OpCode {
     Push8(u8),
+    #[allow(unused)]
     Push16(u16),
     Push32(u32),
     PopEax,
+    #[allow(unused)]
     DecEax,
     AddEax(u32),
     AddAx(u16),
@@ -30,6 +32,7 @@ enum OpCode {
     SubAx(u16),
     SubAl(u8),
     PushEax(Option<u32>),
+    #[allow(unused)]
     PushAx(Option<u16>),
     PushEsp,
     PopEsp,
@@ -159,6 +162,7 @@ impl InstructionSet {
     }
 
     /// creates the ascii equivalent of mov eax, 1
+    #[allow(unused)]
     pub fn zero_eax(&mut self) {
         self.push8(1);
         self.pop_eax();
@@ -177,6 +181,7 @@ impl InstructionSet {
         self.push(Instruction::construct(OpCode::PushEax(eax)))
     }
 
+    #[allow(unused)]
     pub fn push_ax(&mut self, eax: Option<u16>) {
         self.push(Instruction::construct(OpCode::PushAx(eax)))
     }
@@ -217,6 +222,7 @@ impl InstructionSet {
         self.push(Instruction::construct(OpCode::Push32(val)))
     }
 
+    #[allow(unused)]
     pub fn push16(&mut self, val: u16) {
         self.push(Instruction::construct(OpCode::Push16(val)))
     }

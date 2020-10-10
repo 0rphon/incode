@@ -49,7 +49,7 @@ pub fn position_wrap(bytes: &Vec<u8>, esp: u32, eip: u32) -> InstructionSet {
     print!("\rGenerating positional code");
     positional.position(esp, eip, payload.len()+unpack_len);
     positional.extend(payload);
-    println!("Generated positional code for 0x{:08X} -> 0x{:08X}", esp, eip+(positional.len()+unpack_len) as u32);
+    println!("\rGenerated positional code for 0x{:08X} -> 0x{:08X}", esp, eip+(positional.len()+unpack_len) as u32);
     positional
 }
 
@@ -68,3 +68,15 @@ pub fn position_wrap(bytes: &Vec<u8>, esp: u32, eip: u32) -> InstructionSet {
 //2d 7f 7f 7f 7f          sub    eax,0x7f7f7f7f
 //66 2d 7f 7f             sub    ax,0x7f7f
 //2c 7f                   sub    al,0x7f 
+
+
+
+//jump target 19D588
+
+//position && jump:
+//  gen jump code
+//  gen position code
+//  set last len
+//  while last len != cur len
+//  re-gen jump code based on last len
+//  regen position code based on last len
