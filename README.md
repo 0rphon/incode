@@ -6,11 +6,10 @@ Incode is a tool for wrapping x86 shellcode in ascii safe commands. It contains 
 \
 This is a relatively new project but my goal is to add in any tools that I find myself consistently needing over the course of future projects.\
 My current goals are:
-
 - Generate code to far jump
 - Add xor/and instructions to the ascii wrapper to try and increase efficiency
 
-```ignore
+```None
 InCode is an ASCII encoder for x86 shellcode. It has tools to handle wrapping, positioning, and jumping.
 This is a tool I wrote for personal security research. I obviously accept no responsibility for how other
 people use it.
