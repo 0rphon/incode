@@ -40,10 +40,10 @@ Examples:
     Generate ASCII wrapped payload that decodes given values in memory:
         incode.exe \\xF3\\xE9\\xB8\\x00\\x33\\x4A\\x41
 
-    (UNIMPLEMENTED) Generate shellcode to position esp at your location:                                  
+    Generate shellcode to position esp at your location:                                  
         incode.exe --esp 45D308 --eip 457B00
 
-    (UNIMPLEMENTED) Generate [positioning code]+[wrapped payload]:                                        
+    Generate [positioning code]+[wrapped payload]:                                        
         incode.exe --wrap F3E9B800334A41 --esp 45D308 --eip 457B00
 
     (UNIMPLEMENTED) Generate [positioning code]+[wrapped far jump]:                                       
